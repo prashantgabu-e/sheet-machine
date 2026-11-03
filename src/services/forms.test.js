@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import { inferFieldType, validateValues } from './forms.js';
+describe('form helpers', () => { it('infers useful field types', () => { expect(inferFieldType('Work Email')).toBe('email'); expect(inferFieldType('Delivery Date')).toBe('date'); }); it('validates required and select values', () => { const fields = [{ column: 'Email', label: 'Email', required: true, visible: true, type: 'email' }, { column: 'Kind', label: 'Kind', required: true, visible: true, type: 'select', options: ['A'] }]; expect(Object.keys(validateValues(fields, { Email: 'bad', Kind: 'B' }))).toHaveLength(2); }); });
