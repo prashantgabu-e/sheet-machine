@@ -36,7 +36,7 @@ Add the deployed Pages URL and localhost development URL to the OAuth client's A
 
 ## Deploy
 
-Push `main`. The included workflow runs tests, builds with the repository Pages base path, and deploys `dist`. Enable GitHub Pages with **GitHub Actions** as its source.
+Push `main`. The included workflow runs tests, builds the tracked `docs/` folder with the repository Pages base path, and deploys that folder. Enable GitHub Pages with **GitHub Actions** as its source.
 
 ## Security notes
 
