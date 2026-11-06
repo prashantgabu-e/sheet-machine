@@ -1,105 +1,101 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import { AppsScriptBridge } from './services/bridge.js';
-import { inferFieldType, validateValues } from './services/forms.js';
+import { DayPicker } from 'react-day-picker';
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import { EVENT_FORM } from './constants.js';
+import { submitToAppsScript } from './services/form-submit.js';
+import { validateValues } from './services/forms.js';
+import './pwa.js';
 import './styles.css';
+import './pwa.css';
+import 'react-day-picker/style.css';
 
-const bridge = new AppsScriptBridge(import.meta.env.VITE_APPS_SCRIPT_URL);
+const endpoint = import.meta.env.VITE_APPS_SCRIPT_URL;
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const storedTheme = localStorage.getItem('sheet-machine-theme');
+const blankValues = () => Object.fromEntries(EVENT_FORM.fields.flatMap((field) => field.type === 'date-range' ? [[field.startColumn, ''], [field.endColumn, '']] : [[field.column, '']]));
+const AUTH_STORAGE_KEY = 'sheet-machine-google-identity';
 
-function useTheme() {
-  const [theme, setTheme] = useState(storedTheme || 'system');
-  useEffect(() => {
-    const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    localStorage.setItem('sheet-machine-theme', theme);
-  }, [theme]);
-  return [theme, setTheme];
+function decodeIdToken(token) { try { const value = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); return JSON.parse(decodeURIComponent(atob(value).split('').map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`).join(''))); } catch { return null; } }
+function storedIdentity() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY));
+    const claims = stored?.token && decodeIdToken(stored.token);
+    if (!claims?.email || !claims.exp || Number(claims.exp) * 1000 <= Date.now()) throw new Error('Expired identity.');
+    return { token: stored.token, email: claims.email, expiresAt: Number(claims.exp) * 1000 };
+  } catch { localStorage.removeItem(AUTH_STORAGE_KEY); return null; }
 }
 
 function App() {
-  const [theme, setTheme] = useTheme();
-  const [identity, setIdentity] = useState(null);
-  const [status, setStatus] = useState('Loading secure connection…');
-
-  useEffect(() => {
-    bridge.ready().then(() => setStatus('')).catch((error) => setStatus(error.message));
-    window.handleGoogleCredential = ({ credential }) => {
-      bridge.authenticate(credential).then(setIdentity).catch((error) => setStatus(error.message));
-    };
-    if (clientId) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client'; script.async = true;
-      script.onload = () => window.google.accounts.id.initialize({ client_id: clientId, callback: window.handleGoogleCredential });
-      document.head.append(script);
-      return () => script.remove();
-    }
-  }, []);
-
-  return <>
-    <iframe ref={bridge.setFrame} className="bridge" title="Secure Sheet Machine connection" src={bridge.url} />
-    <header className="topbar"><Link className="brand" to="/">Sheet <em>Machine</em></Link><div className="top-actions">
-      <select aria-label="Color theme" value={theme} onChange={(e) => setTheme(e.target.value)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
-      {identity ? <span className="identity">{identity.email}</span> : <button onClick={() => window.google?.accounts.id.prompt()}>Sign in with Google</button>}
-    </div></header>
-    {status && <div className="notice">{status}</div>}
-    <main><Routes>
-      <Route path="/" element={<Dashboard identity={identity} />} />
-      <Route path="/admin/new" element={<FormEditor identity={identity} />} />
-      <Route path="/admin/:formId" element={<FormEditor identity={identity} />} />
-      <Route path="/admin/:formId/entries" element={<Entries identity={identity} />} />
-      <Route path="/f/:formId" element={<Submission identity={identity} />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></main>
-  </>;
+  const [theme, setTheme] = useState(localStorage.getItem('sheet-machine-theme') || 'system');
+  const [identity, setIdentity] = useState(storedIdentity); const [destination, setDestination] = useState(EVENT_FORM.destinations[0].id); const [values, setValues] = useState(blankValues); const [notice, setNotice] = useState(''); const [error, setError] = useState(''); const [submitting, setSubmitting] = useState(false); const [installPrompt, setInstallPrompt] = useState(null);
+  useEffect(() => { const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; localStorage.setItem('sheet-machine-theme', theme); }, [theme]);
+  const clearIdentity = () => { localStorage.removeItem(AUTH_STORAGE_KEY); setIdentity(null); };
+  const renderGoogleButton = () => { const target = document.getElementById('google-signin'); if (target && window.google?.accounts?.id) { target.replaceChildren(); window.google.accounts.id.renderButton(target, { theme: 'outline', size: 'large', text: 'signin_with' }); } };
+  useEffect(() => { window.handleGoogleCredential = ({ credential }) => { const claims = decodeIdToken(credential); if (!claims?.email || !claims.exp) return setError('Google Sign-In did not return a usable identity.'); const next = { token: credential, email: claims.email, expiresAt: Number(claims.exp) * 1000 }; localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next)); setIdentity(next); setError(''); }; if (!clientId) return setError('Missing VITE_GOOGLE_CLIENT_ID configuration.'); const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.onload = () => { window.google.accounts.id.initialize({ client_id: clientId, callback: window.handleGoogleCredential }); renderGoogleButton(); }; document.head.append(script); return () => script.remove(); }, []);
+  useEffect(() => { if (!identity) renderGoogleButton(); }, [identity]);
+  useEffect(() => { const capture = (event) => { event.preventDefault(); setInstallPrompt(event); }; const installed = () => setInstallPrompt(null); window.addEventListener('beforeinstallprompt', capture); window.addEventListener('appinstalled', installed); return () => { window.removeEventListener('beforeinstallprompt', capture); window.removeEventListener('appinstalled', installed); }; }, []);
+  const installApp = async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); };
+  const submit = async (event) => { event.preventDefault(); setError(''); setNotice(''); if (!endpoint) return setError('Missing VITE_APPS_SCRIPT_URL configuration.'); if (!identity) return setError('Sign in with your allowed Google account before submitting.'); const issues = validateValues(EVENT_FORM.fields, values); if (Object.keys(issues).length) return setError(Object.values(issues)[0]); setSubmitting(true); try { await submitToAppsScript({ endpoint, formId: EVENT_FORM.id, idToken: identity.token, values: { ...values, destination } }); setValues(blankValues()); setNotice('Event saved successfully.'); } catch (submissionError) { if (/token|sign in|expired|verified/i.test(submissionError.message)) clearIdentity(); setError(submissionError.message); } finally { setSubmitting(false); } };
+  return <><iframe className="bridge" name="sheetMachineSubmitFrame" title="Sheet Machine submission target" /><header className="topbar"><a className="brand" href={import.meta.env.BASE_URL}><span className="brand-mark">S</span><span>Sheet Machine</span></a><div className="top-actions">{installPrompt && <button className="install-button" type="button" onClick={installApp}>Install app</button>}<select className="theme-select" aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>{identity ? <span className="identity"><span className="presence" />{identity.email}</span> : <div id="google-signin" aria-label="Sign in with Google" />}</div></header><main className="page"><form className="panel" onSubmit={submit}><div className="destination-chips" role="radiogroup" aria-label="Event destination">{EVENT_FORM.destinations.map((item) => <button type="button" role="radio" aria-checked={destination === item.id} className={destination === item.id ? 'chip active' : 'chip'} key={item.id} onClick={() => setDestination(item.id)}><strong>{item.label}</strong></button>)}</div><div className="field-grid">{EVENT_FORM.fields.map((field) => <Field key={field.column} field={field} value={values[field.column]} values={values} onChange={(value) => setValues({ ...values, ...(typeof value === 'object' ? value : { [field.column]: value }) })} />)}</div>{error && <div className="error" role="alert">{error}</div>}{notice && <div className="notice" role="status">✓ {notice}</div>}<div className="form-footer"><button disabled={submitting || !identity}>{submitting ? 'Saving…' : 'Save event →'}</button></div></form></main></>;
 }
 
-function RequireOwner({ identity, children }) {
-  if (!identity) return <Empty title="Sign in required" text="Sign in with the configured Google account to manage forms." />;
-  if (!identity.isAdmin) return <Empty title="Administrator access required" text="This workspace is administered by its configured owner." />;
-  return children;
+function Field({ field, value, onChange, values }) {
+  const id = `field-${field.column}`; const className = `input-field ${field.span === 2 ? 'wide' : ''}`;
+  const choiceSelect = field.type === 'choice' && field.options.length > 0;
+  const inputType = field.type === 'currency' ? 'number' : field.type === 'choice' ? 'text' : field.type;
+  if (field.type === 'date-range') return <DateRangeField field={field} values={values} onChange={onChange} />;
+  if (field.type === 'choice' && field.control === 'chips') return <ChoiceChipField field={field} value={value} onChange={onChange} />;
+  if (field.type === 'tags') return <TagsField field={field} value={value} onChange={onChange} />;
+  if (field.type === 'people') return <PeopleField field={field} value={value} onChange={onChange} />;
+  if (field.type === 'url') return <UrlField field={field} value={value} onChange={onChange} />;
+  if (field.type === 'currency') return <CurrencyField field={field} value={value} onChange={onChange} />;
+  return <label className={className} htmlFor={id}><span>{field.label}{field.required && <b> *</b>}</span>{field.type === 'textarea' ? <textarea id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /> : choiceSelect ? <Select inputId={id} classNamePrefix="search-select" isSearchable options={field.options.map((option) => ({ value: option, label: option }))} value={value ? { value, label: value } : null} onChange={(option) => onChange(option?.value || '')} placeholder="Search or select…" noOptionsMessage={() => 'No matching option'} /> : <input id={id} type={inputType} min={field.min} step={field.type === 'currency' ? '0.01' : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}{field.type === 'choice' && !choiceSelect && <small>Master choices will be added later.</small>}</label>;
 }
 
-function Dashboard({ identity }) {
-  const [forms, setForms] = useState([]); const [error, setError] = useState('');
-  useEffect(() => { if (identity) bridge.call('listForms').then(setForms).catch((e) => setError(e.message)); }, [identity]);
-  return <section className="page"><div className="hero"><p className="eyebrow">PRIVATE FORM WORKSPACE</p><h1>Collect clean data, directly into Sheets.</h1><p>Build controlled forms from the columns your team already uses.</p>{identity?.isAdmin && <Link className="button" to="/admin/new">Create a form</Link>}</div>
-    {error && <div className="error">{error}</div>}
-    <div className="section-heading"><h2>Your forms</h2><span>{forms.length} total</span></div>
-    <div className="card-grid">{forms.map((form) => <article className="card" key={form.id}><div className={'status '+form.status}>{form.status}</div><h3>{form.name}</h3><p>{form.fields.filter((field) => field.visible).length} fields · {form.allowedEmails.length} people allowed</p><div className="card-actions"><Link to={`/f/${form.id}`}>Open form</Link>{identity?.isAdmin && <Link to={`/admin/${form.id}`}>Manage</Link>}</div></article>)}</div>
-    {identity && !forms.length && <Empty title="No forms yet" text={identity.isAdmin ? 'Connect a spreadsheet tab to create your first form.' : 'Ask an administrator to add you to a form.'} />}
-  </section>;
+function CurrencyField({ field, value, onChange }) {
+  return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><span>{field.label}</span><div className="currency-control"><span aria-hidden="true">₹</span><input type="number" min={field.min} step="0.01" value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></div></label>;
 }
 
-function FormEditor({ identity }) {
-  const { formId } = useParams(); const navigate = useNavigate();
-  const [form, setForm] = useState(null); const [sheet, setSheet] = useState(''); const [tab, setTab] = useState(''); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
-  useEffect(() => { if (formId && identity?.isAdmin) bridge.call('getForm', { formId }).then(setForm).catch((e) => setError(e.message)); }, [formId, identity]);
-  const imported = async () => { try { const draft = await bridge.call('importSheet', { spreadsheetId: sheet.trim(), sheetName: tab.trim() }); setForm(draft); } catch (e) { setError(e.message); } };
-  const save = async () => { setSaving(true); try { const saved = await bridge.call('saveForm', { form }); setForm(saved); navigate(`/admin/${saved.id}`, { replace: true }); } catch (e) { setError(e.message); } finally { setSaving(false); } };
-  const update = (index, change) => setForm({ ...form, fields: form.fields.map((field, i) => i === index ? { ...field, ...change } : field) });
-  return <RequireOwner identity={identity}><section className="page narrow"><Link className="back" to="/">← Forms</Link><h1>{form ? `Configure ${form.name}` : 'Connect a sheet'}</h1>{error && <div className="error">{error}</div>}
-    {!form ? <div className="panel"><p>Paste the spreadsheet ID and exact tab name. Row 1 must contain unique headers.</p><label>Spreadsheet ID<input value={sheet} onChange={(e) => setSheet(e.target.value)} placeholder="1Abc…" /></label><label>Tab name<input value={tab} onChange={(e) => setTab(e.target.value)} placeholder="Responses" /></label><button onClick={imported}>Import columns</button></div> : <>
-      <div className="panel"><label>Form name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label><label>Allowed Google emails <textarea value={form.allowedEmails.join('\n')} onChange={(e) => setForm({ ...form, allowedEmails: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} placeholder="one@email.com" /></label><div className="row"><button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save draft'}</button><button className="secondary" onClick={() => { setForm({ ...form, status: form.status === 'published' ? 'closed' : 'published' }); }}>Set {form.status === 'published' ? 'closed' : 'published'} then save</button></div></div>
-      <div className="section-heading"><h2>Fields</h2><button className="text-button" onClick={async () => { try { setForm(await bridge.call('refreshFormSchema', { formId: form.id })); } catch (e) { setError(e.message); } }}>Refresh from sheet</button></div>
-      <div className="fields">{form.fields.map((field, index) => <div className="field-row" key={field.column}><input aria-label="Field label" value={field.label} onChange={(e) => update(index, { label: e.target.value })} /><select value={field.type} onChange={(e) => update(index, { type: e.target.value })}>{['text','textarea','number','email','phone','date','checkbox','select'].map((type) => <option key={type}>{type}</option>)}</select><label className="checkbox"><input type="checkbox" checked={field.required} onChange={(e) => update(index, { required: e.target.checked })} /> Required</label><label className="checkbox"><input type="checkbox" checked={field.visible} onChange={(e) => update(index, { visible: e.target.checked })} /> Visible</label>{field.type === 'select' && <input aria-label="Choices" value={(field.options || []).join(', ')} onChange={(e) => update(index, { options: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} placeholder="Choice A, Choice B" />}</div>)}</div>
-      <Link className="button secondary" to={`/admin/${form.id}/entries`}>View entries</Link></>}
-  </section></RequireOwner>;
+function ChoiceChipField({ field, value, onChange }) {
+  return <div className={`input-field choice-chips-field ${field.span === 2 ? 'wide' : ''}`}><span>{field.label}{field.required && <b> *</b>}</span><div className="choice-chips" role="radiogroup" aria-label={field.label}>{field.options.map((option) => <button key={option} type="button" role="radio" aria-checked={value === option} className={`choice-chip ${field.chipTone} option-${option.toLowerCase().replaceAll(/[^a-z]+/g, '-')}${value === option ? ' active' : ''}`} onClick={() => onChange(option)}><ChoiceIcon field={field.column} option={option} />{option}</button>)}</div></div>;
 }
 
-function Submission({ identity }) {
-  const { formId } = useParams(); const [form, setForm] = useState(null); const [values, setValues] = useState({}); const [error, setError] = useState(''); const [done, setDone] = useState(false);
-  useEffect(() => { if (identity) bridge.call('getPublicForm', { formId }).then(setForm).catch((e) => setError(e.message)); }, [formId, identity]);
-  const submit = async (event) => { event.preventDefault(); const issues = validateValues(form.fields, values); if (Object.keys(issues).length) return setError(Object.values(issues)[0]); try { await bridge.call('submitForm', { formId, values }); setDone(true); } catch (e) { setError(e.message); } };
-  if (!identity) return <Empty title="Sign in to continue" text="This is a private team form. Use your allowed Google account." />;
-  if (done) return <Empty title="Submission received" text="Your data has been added to the team spreadsheet." />;
-  return <section className="page form-page">{error && <div className="error">{error}</div>}{form && <form className="panel" onSubmit={submit}><p className="eyebrow">PRIVATE FORM</p><h1>{form.name}</h1>{form.fields.filter((field) => field.visible).map((field) => <Input key={field.column} field={field} value={values[field.column]} onChange={(value) => setValues({ ...values, [field.column]: value })} />)}<button>Submit securely</button></form>}</section>;
+const CHOICE_ICONS = {
+  'Event Type': { Personal: '●', Family: '♡', Social: '◉', Professional: '▣' },
+  'Emotional Importance': { Low: '↓', Medium: '−', High: '↑', 'Life-Changing': '✦' },
+  'Event Status': { Planned: '◷', Ongoing: '◌', Completed: '✓', Cancelled: '×' },
+};
+
+function ChoiceIcon({ field, option }) {
+  return <span className="choice-chip-icon" aria-hidden="true">{CHOICE_ICONS[field]?.[option] || '•'}</span>;
 }
 
-function Input({ field, value, onChange }) { const id = `field-${field.column}`; return <label htmlFor={id}>{field.label}{field.required && <span className="required"> *</span>}{field.type === 'textarea' ? <textarea id={id} value={value || ''} onChange={(e) => onChange(e.target.value)} /> : field.type === 'select' ? <select id={id} value={value || ''} onChange={(e) => onChange(e.target.value)}><option value="">Select…</option>{(field.options || []).map((option) => <option key={option}>{option}</option>)}</select> : field.type === 'checkbox' ? <input id={id} type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} /> : <input id={id} type={field.type === 'phone' ? 'tel' : field.type} value={value || ''} onChange={(e) => onChange(e.target.value)} />}</label>; }
+function toLocalDate(value) { if (!value) return undefined; const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
+function toDateValue(date) { if (!date) return ''; return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
-function Entries({ identity }) { const { formId } = useParams(); const [data, setData] = useState(null); const [query, setQuery] = useState(''); const [error, setError] = useState(''); useEffect(() => { if (identity?.isAdmin) bridge.call('listEntries', { formId }).then(setData).catch((e) => setError(e.message)); }, [identity, formId]); const rows = useMemo(() => (data?.rows || []).filter((row) => Object.values(row).join(' ').toLowerCase().includes(query.toLowerCase())), [data, query]); return <RequireOwner identity={identity}><section className="page"><Link className="back" to={`/admin/${formId}`}>← Form settings</Link><div className="section-heading"><h1>Entries</h1><input aria-label="Search entries" placeholder="Search entries" value={query} onChange={(e) => setQuery(e.target.value)} /></div>{error && <div className="error">{error}</div>}{data && <div className="table-wrap"><table><thead><tr>{data.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={i}>{data.headers.map((header) => <td key={header}>{String(row[header] ?? '')}</td>)}</tr>)}</tbody></table></div>}</section></RequireOwner>; }
-function Empty({ title, text }) { return <section className="empty"><h1>{title}</h1><p>{text}</p></section>; }
-createRoot(document.getElementById('root')).render(<BrowserRouter><App /></BrowserRouter>);
+function DateRangeField({ field, values, onChange }) {
+  const [open, setOpen] = useState(false);
+  const selected = { from: toLocalDate(values[field.startColumn]), to: toLocalDate(values[field.endColumn]) };
+  const label = selected.from ? `${selected.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}${selected.to ? ` → ${selected.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ' → Select end date'}` : 'Select start and end dates';
+  return <div className="input-field wide range-field"><span>{field.label}{field.required && <b> *</b>}</span><button type="button" className="range-trigger" onClick={() => setOpen(!open)}>{label}<span>⌄</span></button>{open && <div className="calendar-popover"><DayPicker mode="range" min={1} selected={selected.from ? selected : undefined} onSelect={(range) => { onChange({ [field.startColumn]: toDateValue(range?.from), [field.endColumn]: toDateValue(range?.to) }); if (range?.from && range?.to) setOpen(false); }} numberOfMonths={2} captionLayout="dropdown" /><button type="button" className="clear-range" onClick={() => { onChange({ [field.startColumn]: '', [field.endColumn]: '' }); setOpen(false); }}>Clear dates</button></div>}</div>;
+}
+
+function TagsField({ field, value, onChange }) {
+  const [draft, setDraft] = useState(''); const tags = value ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : [];
+  const add = () => { const next = draft.trim().replace(/,/g, ''); if (!next || tags.includes(next)) return setDraft(''); onChange([...tags, next].join(', ')); setDraft(''); };
+  return <label className="input-field wide"><span>{field.label}</span><div className="tags-box">{tags.map((tag) => <button type="button" className="tag" key={tag} onClick={() => onChange(tags.filter((item) => item !== tag).join(', '))}>{tag}<span>×</span></button>)}<input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Backspace' && !draft && tags.length) { onChange(tags.slice(0, -1).join(', ')); return; } if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); add(); } }} onBlur={add} placeholder={field.placeholder} /></div></label>;
+}
+
+function PeopleField({ field, value, onChange }) {
+  const people = value ? value.split(',').map((name) => name.trim()).filter(Boolean) : [];
+  const options = [...new Set([...field.options, ...people])].map((name) => ({ value: name, label: name }));
+  return <label className="input-field"><span>{field.label}</span><CreatableSelect classNamePrefix="search-select" isMulti isSearchable options={options} value={people.map((name) => ({ value: name, label: name }))} onChange={(selected) => onChange((selected || []).map((option) => option.value.trim()).filter(Boolean).join(', '))} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} /></label>;
+}
+
+function UrlField({ field, value, onChange }) {
+  const paste = async () => { try { onChange(await navigator.clipboard.readText()); } catch { /* Clipboard permission was not granted. */ } };
+  return <label className="input-field wide"><span>{field.label}</span><div className="url-control"><input type="url" value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /><button type="button" onClick={paste} aria-label="Paste from clipboard" title="Paste from clipboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v2H9zM7 6h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v11h10V8H7zm3 3h4v2h-4zm0 4h4v2h-4z" /></svg></button></div></label>;
+}
+
+createRoot(document.getElementById('root')).render(<App />);

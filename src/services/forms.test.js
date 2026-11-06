@@ -1,3 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { inferFieldType, validateValues } from './forms.js';
-describe('form helpers', () => { it('infers useful field types', () => { expect(inferFieldType('Work Email')).toBe('email'); expect(inferFieldType('Delivery Date')).toBe('date'); }); it('validates required and select values', () => { const fields = [{ column: 'Email', label: 'Email', required: true, visible: true, type: 'email' }, { column: 'Kind', label: 'Kind', required: true, visible: true, type: 'select', options: ['A'] }]; expect(Object.keys(validateValues(fields, { Email: 'bad', Kind: 'B' }))).toHaveLength(2); }); });
+import { validateValues } from './forms.js';
+
+describe('form validation', () => {
+  it('rejects missing required values and malformed emails', () => {
+    const fields = [
+      { column: 'Name', label: 'Name', required: true, visible: true, type: 'text' },
+      { column: 'Email', label: 'Email', required: true, visible: true, type: 'email' },
+      { column: 'Amount', label: 'Amount', required: false, visible: true, type: 'currency' },
+    ];
+    expect(Object.keys(validateValues(fields, { Email: 'not-an-email', Amount: '-1' }))).toHaveLength(3);
+  });
+});

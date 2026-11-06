@@ -1,6 +1,19 @@
 # Sheet Machine
 
-Private, mobile-first forms backed by existing Google Sheets tabs. The React/Vite client deploys to GitHub Pages; Apps Script is the protected bridge and uses a dedicated service account to call the Sheets API.
+One mobile-first event form that routes each submission into one of four sheet destinations. GitHub Pages hosts the React/Vite UI. A deployed Apps Script Web App receives form-encoded submissions in a hidden iframe and writes using the deployment owner's Google Sheets access. The app deliberately does not read or display Sheet rows.
+
+## Event form and destinations
+
+The current form contains event information only; it does not show system-generated values. Apps Script generates `Sr. No.`, `Event ID`, `Duration`, `Created Date`, and `Last Updated` immediately before appending a row.
+
+The destination chips route to:
+
+- Prashant: third tab in the first spreadsheet
+- Khyati: second tab in the first spreadsheet
+- Family: first tab in the first spreadsheet
+- Others: first tab in the second spreadsheet
+
+Add master values for any choice field later in `src/constants.js` and the matching `options` array in `apps-script/Code.gs`.
 
 ## Local development
 
@@ -10,37 +23,33 @@ cp .env.example .env
 npm run dev
 ```
 
-The app needs a deployed Apps Script bridge before protected flows can work.
+Set the public `.env` values:
 
-## Apps Script setup (manual deployment)
+```env
+VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/DEPLOYMENT_ID/exec
+VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+```
 
-1. Create a standalone Apps Script project at [script.new](https://script.new/).
-2. In the Apps Script editor, create files with the same names as the contents of `apps-script/` and paste each file's contents:
-   - `Code.gs`
-   - `Auth.gs`
-   - `Sheets.gs`
-   - `Bridge.html`
-   - `appsscript.json` (open Project Settings and enable **Show "appsscript.json" manifest file in editor** first)
-3. Save the project, then continue with Google Cloud and Script Properties configuration below.
-4. Create a standard Google Cloud project, OAuth web client, and service account. Enable the Google Sheets API.
-5. Configure these **Apps Script Script Properties** — never put them in the repository:
-   - `PARENT_ORIGIN`: the exact Pages site origin, e.g. `https://owner.github.io`.
-   - `GOOGLE_CLIENT_ID`: OAuth web-client ID used by the browser.
-   - `ADMIN_EMAIL`: the single form administrator's Google email.
-   - `SERVICE_ACCOUNT_JSON`: complete service-account JSON, stored as one value.
-6. Deploy the Apps Script project as a Web app executing as you, with public access. The bridge authenticates and authorizes every request itself.
-7. Put its `/exec` URL and the OAuth client ID in GitHub repository **Actions variables** named `VITE_APPS_SCRIPT_URL` and `VITE_GOOGLE_CLIENT_ID`.
-8. Share every form destination spreadsheet with the service account's `client_email` as an Editor.
+## Apps Script setup
 
-Add the deployed Pages URL and localhost development URL to the OAuth client's Authorized JavaScript origins.
+1. Create a standalone project at [script.new](https://script.new/).
+2. In the editor, create and paste these files from `apps-script/`: `Code.gs`, `Auth.gs`, `Sheets.gs`, and `appsscript.json`. Enable **Show "appsscript.json" manifest file in editor** in Project Settings first.
+3. Make sure the Google account that owns the Apps Script deployment has Editor access to both destination spreadsheets.
+4. Add these Apps Script Script Properties:
+   - `PARENT_ORIGINS`: `https://prashantgabu-e.github.io,http://localhost:5173,http://127.0.0.1:5173`
+   - `GOOGLE_CLIENT_ID`: the browser OAuth client ID
+   - `FIRST_SPREADSHEET_ID`: ID of the first spreadsheet
+   - `SECOND_SPREADSHEET_ID`: ID of the second spreadsheet
+5. Make sure all four target tabs contain the 21 event headers documented in `apps-script/Code.gs`.
+6. Deploy as a Web app: **Execute as Me**, **Who has access Anyone**. Use its `/exec` URL as `VITE_APPS_SCRIPT_URL`.
 
 ## Deploy
 
-Push `main`. The included workflow runs tests, builds the tracked `docs/` folder with the repository Pages base path, and deploys that folder. Enable GitHub Pages with **GitHub Actions** as its source.
+Set `VITE_APPS_SCRIPT_URL` and `VITE_GOOGLE_CLIENT_ID` as GitHub Actions repository variables. Push `main`; the workflow tests, builds into the tracked `docs/` directory, and deploys it through GitHub Pages.
 
-## Security notes
+## Security
 
-- The browser only receives public configuration: OAuth client ID and bridge URL.
-- Service-account credentials live only in Apps Script Script Properties.
-- The bridge accepts messages only from `PARENT_ORIGIN`; the browser accepts bridge messages only from its embedded Google frame.
-- Google ID tokens are checked server-side for audience, issuer, expiry, verified email, and a stable Google account subject before authorization.
+- The browser sends submissions through a normal HTML form targeted to a hidden iframe; it does not use cross-origin `fetch`.
+- Each submission includes a Google ID token; Apps Script verifies its issuer, audience, expiry, and verified email before writing.
+- The Apps Script response contains a random request ID and posts success/failure only to the configured parent origins.
+- The browser accepts responses only from Google Apps Script origins that match its pending request ID.

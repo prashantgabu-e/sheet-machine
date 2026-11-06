@@ -12,8 +12,10 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "react": "latest",
+    "react-day-picker": "latest",
     "react-dom": "latest",
-    "react-router-dom": "latest"
+    "react-select": "latest",
+    "vite-plugin-pwa": "latest"
   },
   "devDependencies": {
     "vite": "latest",

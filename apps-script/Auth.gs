@@ -8,5 +8,5 @@ function identity_(input) {
   const claim = JSON.parse(response.getContentText());
   if (claim.aud !== required_('GOOGLE_CLIENT_ID') || !['accounts.google.com', 'https://accounts.google.com'].includes(claim.iss) || String(claim.email_verified) !== 'true' || !claim.sub || !claim.email || Number(claim.exp) * 1000 <= Date.now()) throw new Error('Your Google sign-in could not be verified.');
   const email = String(claim.email).toLowerCase();
-  return { subject: claim.sub, email, isAdmin: email === required_('ADMIN_EMAIL').toLowerCase() };
+  return { subject: claim.sub, email };
 }
