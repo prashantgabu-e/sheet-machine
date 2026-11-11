@@ -47,6 +47,7 @@ function doPost(e) {
     } finally { lock.releaseLock(); }
     return postMessageResponse_({ source: RESPONSE_SOURCE, requestId, success: true });
   } catch (error) {
+    console.error(error && error.stack ? error.stack : error);
     return postMessageResponse_({ source: RESPONSE_SOURCE, requestId, success: false, message: error.message || 'Event could not be saved.' });
   }
 }
@@ -81,6 +82,13 @@ function ensureEventHeaders_(headers) {
   if (missing.length) throw new Error(`Destination sheet is missing: ${missing.join(', ')}`);
 }
 function duration_(start, end) { if (!start) return ''; const endDate = end || start; return Math.round((Date.parse(endDate + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 86400000) + 1; }
-function postMessageResponse_(response) { const origins = required_('PARENT_ORIGINS').split(',').map((origin) => origin.trim()).filter(Boolean); const serialized = JSON.stringify(response).replace(/</g, '\\u003c'); const calls = origins.map((origin) => `window.top.postMessage(${serialized}, ${JSON.stringify(origin)});`).join(''); return HtmlService.createHtmlOutput(`<script>${calls}</script>`).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); }
+function postMessageResponse_(response) {
+  // The web app is loaded in the form's hidden iframe.  Its final URL is a
+  // googleusercontent.com URL, so it cannot reliably know the hosting origin
+  // (GitHub Pages, localhost, a custom domain, etc.).  Send the response to the
+  // top-level form page just as the iframe bridge expects.
+  const message = JSON.stringify(JSON.stringify(response)).replace(/</g, '\\u003c');
+  return HtmlService.createHtmlOutput(`<!doctype html><html><body><script>window.top.postMessage(${message}, '*');</script></body></html>`).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
 function required_(name) { const value = PROP.getProperty(name); if (!value) throw new Error(`Missing Script Property: ${name}`); return value; }
 function normalize_(field, value) { if (value === undefined || value === null) return ''; return field && field.type === 'currency' ? Number(value) : String(value); }

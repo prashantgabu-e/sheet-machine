@@ -36,12 +36,19 @@ VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
 2. In the editor, create and paste these files from `apps-script/`: `Code.gs`, `Auth.gs`, `Sheets.gs`, and `appsscript.json`. Enable **Show "appsscript.json" manifest file in editor** in Project Settings first.
 3. Make sure the Google account that owns the Apps Script deployment has Editor access to both destination spreadsheets.
 4. Add these Apps Script Script Properties:
-   - `PARENT_ORIGINS`: `https://prashantgabu-e.github.io,http://localhost:5173,http://127.0.0.1:5173`
    - `GOOGLE_CLIENT_ID`: the browser OAuth client ID
    - `FIRST_SPREADSHEET_ID`: ID of the first spreadsheet
    - `SECOND_SPREADSHEET_ID`: ID of the second spreadsheet
 5. Make sure all four target tabs contain the 21 event headers documented in `apps-script/Code.gs`.
 6. Deploy as a Web app: **Execute as Me**, **Who has access Anyone**. Use its `/exec` URL as `VITE_APPS_SCRIPT_URL`.
+
+After each Apps Script deployment, verify the exact `/exec` URL without writing a row:
+
+```bash
+npm run debug:apps-script -- https://script.google.com/macros/s/DEPLOYMENT_ID/exec
+```
+
+It must report `PASS`. A compile error such as `Identifier 'PROP' has already been declared` means the Apps Script project contains an old duplicate declaration; replace its `Sheets.gs` with this repository's `apps-script/Sheets.gs`, then redeploy.
 
 ## Deploy
 
@@ -51,5 +58,5 @@ Set `VITE_APPS_SCRIPT_URL` and `VITE_GOOGLE_CLIENT_ID` as GitHub Actions reposit
 
 - The browser sends submissions through a normal HTML form targeted to a hidden iframe; it does not use cross-origin `fetch`.
 - Each submission includes a Google ID token; Apps Script verifies its issuer, audience, expiry, and verified email before writing.
-- The Apps Script response contains a random request ID and posts success/failure only to the configured parent origins.
+- The Apps Script response contains a random request ID and posts success/failure from the hidden iframe to its top-level parent page.
 - The browser accepts responses only from Google Apps Script origins that match its pending request ID.

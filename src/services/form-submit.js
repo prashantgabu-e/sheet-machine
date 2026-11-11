@@ -8,7 +8,7 @@ export function submitToAppsScript({ endpoint, formId, idToken, values }) {
     let form;
     const cleanup = () => { clearTimeout(timeout); window.removeEventListener('message', receive); form?.remove(); };
     const receive = (event) => { if (!isAppsScriptOrigin(event.origin)) return; const message = parseMessage(event.data); if (message?.source !== RESPONSE_SOURCE || message.requestId !== requestId) return; cleanup(); message.success ? resolve(message) : reject(new Error(message.message || 'Submission failed.')); };
-    const timeout = setTimeout(() => { cleanup(); reject(new Error('The submission timed out. Please try again.')); }, TIMEOUT_MS);
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('The submission timed out. It may still have been saved; check the sheet before retrying.')); }, TIMEOUT_MS);
     window.addEventListener('message', receive);
     form = document.createElement('form'); form.method = 'POST'; form.action = endpoint; form.target = 'sheetMachineSubmitFrame'; form.hidden = true;
     Object.entries({ formId, requestId, idToken, values: JSON.stringify(values) }).forEach(([name, value]) => { const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = value; form.append(input); });

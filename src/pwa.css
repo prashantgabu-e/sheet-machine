@@ -12,11 +12,28 @@
 
 .install-button:hover { background: #eae6ff; }
 
+.logout-button {
+  border: 1px solid #d5dbea;
+  border-radius: 8px;
+  padding: .36rem .56rem;
+  background: transparent;
+  color: #59677e;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.logout-button:hover { border-color: #c5808b; background: #fff5f6; color: #a43849; }
+
 [data-theme=dark] .install-button {
   border-color: #7568bd;
   background: #29234a;
   color: #ddd8ff;
 }
+
+[data-theme=dark] .logout-button { border-color: #40506d; color: #cbd7eb; }
+[data-theme=dark] .logout-button:hover { border-color: #a44f5e; background: #35212c; color: #ffc0ca; }
 
 /* Searchable multi-select fields, including People Attended. */
 .search-select__control {
@@ -213,3 +230,69 @@
 
 [data-theme=dark] .currency-control { border-color: #40506d; background: #16223a; }
 [data-theme=dark] .currency-control > span { border-color: #40506d; background: #202c46; color: #ddd8ff; }
+
+/* Complete dark-mode surface and text treatment. */
+[data-theme=dark] { color-scheme: dark; }
+[data-theme=dark] .input-field { color: #cbd7eb; }
+[data-theme=dark] .input-field small { color: #9aa9c1; }
+
+[data-theme=dark] .input-field input,
+[data-theme=dark] .input-field select,
+[data-theme=dark] .input-field textarea,
+[data-theme=dark] .range-trigger,
+[data-theme=dark] .tags-box {
+  border-color: #40506d;
+  background: #16223a;
+  color: #eef3ff;
+}
+
+[data-theme=dark] .input-field input::placeholder,
+[data-theme=dark] .input-field textarea::placeholder,
+[data-theme=dark] .tags-box input::placeholder { color: #94a3ba; }
+
+[data-theme=dark] .chip {
+  border-color: #40506d;
+  background: #16223a;
+  color: #dce7f8;
+}
+
+[data-theme=dark] .chip.active {
+  border-color: #8d7aef;
+  background: linear-gradient(135deg, #302952, #19365b);
+  box-shadow: 0 4px 14px #00000042;
+}
+
+[data-theme=dark] .chip.active strong { color: #ded9ff; }
+[data-theme=dark] .theme-select { border-color: #40506d; background: #16223a; color: #edf3ff; }
+
+[data-theme=dark] .url-control button {
+  border-color: #40506d;
+  background: #202c46;
+  color: #bfb6ff;
+}
+
+[data-theme=dark] .calendar-popover {
+  border-color: #40506d;
+  background: #16223a;
+  color: #eef3ff;
+}
+
+[data-theme=dark] .calendar-popover .rdp { --rdp-accent-background-color: #302952; }
+
+[data-theme=dark] .search-select__control {
+  border-color: #40506d !important;
+  background: #16223a !important;
+}
+
+[data-theme=dark] .search-select__single-value,
+[data-theme=dark] .search-select__input-container,
+[data-theme=dark] .search-select__placeholder,
+[data-theme=dark] .search-select__indicator { color: #e7eefb !important; }
+
+[data-theme=dark] .search-select__menu { border-color: #40506d; background: #16223a !important; }
+[data-theme=dark] .search-select__option { background: #16223a; color: #e7eefb; }
+[data-theme=dark] .search-select__option--is-focused { background: #263756; }
+[data-theme=dark] .search-select__option--is-selected { background: #4d3eaa; }
+
+[data-theme=dark] .error { border-color: #873e4d; background: #351d28; color: #ffbdc8; }
+[data-theme=dark] .notice { border-color: #2c7b56; background: #163427; color: #a9edc9; }
