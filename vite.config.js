@@ -2,9 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Set VITE_BASE_PATH=/repository-name/ in GitHub Actions or use a custom-domain root.
+// GitHub Project Pages serves this application from /sheet-machine/.
+// Override VITE_BASE_PATH only when deploying it to a custom-domain root.
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || '/',
+  base: process.env.VITE_BASE_PATH || '/sheet-machine/',
   plugins: [
     react(),
     VitePWA({
