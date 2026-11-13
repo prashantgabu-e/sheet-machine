@@ -34,9 +34,9 @@ export const LOAN_FORM = {
   submitLabel: 'Save loan',
   fields: [
     { column: 'Date Transferred', label: 'Date transferred', type: 'date', required: true },
-    { column: 'Sender', label: 'Sender', type: 'person', required: true, options: ['Mummy', 'Alpesh'], placeholder: 'Select or add a sender' },
-    { column: 'Receiver', label: 'Receiver', type: 'person', required: true, options: ['Mummy', 'Alpesh'], placeholder: 'Select or add a receiver' },
-    { column: 'Loan Type', label: 'Loan type', type: 'choice', required: true, options: ['Personal', 'Home', 'Vehicle', 'Business', 'Education', 'Medical', 'Other'] },
+    { column: 'Sender', label: 'Sender', type: 'person', required: true, options: ['Mummy', 'Alpesh', 'Prashant', 'Darshita', 'Moira Nexus', 'Chotila Farm', 'Prangadh Farm'], placeholder: 'Select or add a sender' },
+    { column: 'Receiver', label: 'Receiver', type: 'person', required: true, options: ['Mummy', 'Alpesh', 'Prashant', 'Darshita', 'Moira Nexus', 'Chotila Farm', 'Prangadh Farm'], placeholder: 'Select or add a receiver' },
+    { column: 'Loan Type', label: 'Loan type', type: 'choice', required: true, options: ['Personal', 'Home', 'Vehicle', 'Business', 'Education', 'Medical', 'Property related', 'Lawyer/Legal', 'Other'] },
     { column: 'Status', label: 'Status', type: 'choice', required: true, options: ['Active', 'Partially Paid', 'Paid', 'Overdue'] },
     { column: 'Total Amount', label: 'Total amount', type: 'currency', required: true, min: 0, placeholder: '0' },
     { column: 'Amount Paid', label: 'Amount paid', type: 'currency', min: 0, defaultValue: '0', placeholder: '0' },

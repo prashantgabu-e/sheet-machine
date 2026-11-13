@@ -37,8 +37,8 @@ Sr No., Date Transferred, Sender, Receiver, Loan Type, Status, Total Amount, Amo
 Configured field types and choices:
 
 - Date Transferred and Amount Paid On: date inputs
-- Sender and Receiver: creatable lists initially containing Mummy and Alpesh
-- Loan Type: Personal, Home, Vehicle, Business, Education, Medical, Other
+- Sender and Receiver: creatable lists initially containing Mummy, Alpesh, Prashant, Darshita, Moira Nexus, Chotila Farm, and Prangadh Farm
+- Loan Type: Personal, Home, Vehicle, Business, Education, Medical, Property related, Lawyer/Legal, Other
 - Status: Active, Partially Paid, Paid, Overdue
 - Total Amount and Amount Paid: INR currency inputs; Amount Paid cannot exceed Total Amount
 

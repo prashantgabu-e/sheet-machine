@@ -25,7 +25,7 @@
     { column: 'Date Transferred', type: 'date', required: true },
     { column: 'Sender', type: 'text', required: true },
     { column: 'Receiver', type: 'text', required: true },
-    { column: 'Loan Type', type: 'choice', required: true, options: ['Personal', 'Home', 'Vehicle', 'Business', 'Education', 'Medical', 'Other'] },
+    { column: 'Loan Type', type: 'choice', required: true, options: ['Personal', 'Home', 'Vehicle', 'Business', 'Education', 'Medical', 'Property related', 'Lawyer/Legal', 'Other'] },
     { column: 'Status', type: 'choice', required: true, options: ['Active', 'Partially Paid', 'Paid', 'Overdue'] },
     { column: 'Total Amount', type: 'currency', required: true },
     { column: 'Amount Paid', type: 'currency', required: false },
