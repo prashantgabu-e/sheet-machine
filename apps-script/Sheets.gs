@@ -19,11 +19,12 @@ function headers_(spreadsheetId, sheetName) {
   return headers;
 }
 
-function sheetsAppend_(spreadsheetId, sheetName, row) {
+function sheetsAppend_(spreadsheetId, sheetName, row, serialHeader) {
   const sheet = sheet_(spreadsheetId, sheetName);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
-  const serialColumn = headers.indexOf('Sr. No.') + 1;
-  if (!serialColumn) throw new Error('The destination sheet must contain a Sr. No. header.');
+  const header = serialHeader || 'Sr. No.';
+  const serialColumn = headers.indexOf(header) + 1;
+  if (!serialColumn) throw new Error(`The destination sheet must contain a ${header} header.`);
   sheet.getRange(nextAppendRow_(sheet, serialColumn), 1, 1, row.length).setValues([row]);
 }
 

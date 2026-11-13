@@ -1,6 +1,15 @@
 # Sheet Machine
 
-One mobile-first event form that routes each submission into one of four sheet destinations. GitHub Pages hosts the React/Vite UI. A deployed Apps Script Web App receives form-encoded submissions in a hidden iframe and writes using the deployment owner's Google Sheets access. The app deliberately does not read or display Sheet rows.
+A mobile-first, write-only register for personal events and loans. GitHub Pages hosts the React/Vite UI. A deployed Apps Script Web App receives form-encoded submissions in a hidden iframe and writes using the deployment owner's Google Sheets access. The app deliberately does not read or display Sheet rows.
+
+## Access and navigation
+
+The application opens on a full-page Google login. A token must pass a no-write Apps Script authorization check before the user can access the application; the server-side `ALLOWED_EMAILS` list is the authority. Valid, unexpired authorized sessions are retained in local storage.
+
+After login, the left sidebar contains:
+
+- **Event Logs**: the existing event-entry form and its four timeline destinations.
+- **Loan Register**: a separate loan-entry form that writes to its own spreadsheet.
 
 ## Event form and destinations
 
@@ -14,6 +23,24 @@ The destination chips route to:
 - Others: first tab in the second spreadsheet
 
 Add master values for any choice field later in `src/constants.js` and the matching `options` array in `apps-script/Code.gs`.
+
+## Loan register and destination
+
+The Loan Register writes to the first tab of a separate spreadsheet. `Sr. No.` and `Outstanding` are generated server-side; Outstanding is always `Total Amount - Amount Paid`.
+
+The loan spreadsheet's first tab must have these headers in exactly this order:
+
+```text
+Sr No., Date Transferred, Sender, Receiver, Loan Type, Status, Total Amount, Amount Paid, Outstanding, Amount Paid On
+```
+
+Configured field types and choices:
+
+- Date Transferred and Amount Paid On: date inputs
+- Sender and Receiver: creatable lists initially containing Mummy and Alpesh
+- Loan Type: Personal, Home, Vehicle, Business, Education, Medical, Other
+- Status: Active, Partially Paid, Paid, Overdue
+- Total Amount and Amount Paid: INR currency inputs; Amount Paid cannot exceed Total Amount
 
 ## Local development
 
@@ -34,12 +61,13 @@ VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
 
 1. Create a standalone project at [script.new](https://script.new/).
 2. In the editor, create and paste these files from `apps-script/`: `Code.gs`, `Auth.gs`, `Sheets.gs`, and `appsscript.json`. Enable **Show "appsscript.json" manifest file in editor** in Project Settings first.
-3. Make sure the Google account that owns the Apps Script deployment has Editor access to both destination spreadsheets.
+3. Make sure the Google account that owns the Apps Script deployment has Editor access to all three destination spreadsheets.
 4. Add these Apps Script Script Properties:
    - `GOOGLE_CLIENT_ID`: the browser OAuth client ID
    - `FIRST_SPREADSHEET_ID`: ID of the first spreadsheet
    - `SECOND_SPREADSHEET_ID`: ID of the second spreadsheet
-5. Make sure all four target tabs contain the 21 event headers documented in `apps-script/Code.gs`.
+   - `LOAN_SPREADSHEET_ID`: ID of the separate loan spreadsheet
+5. Make sure all four event target tabs contain the 21 event headers documented in `apps-script/Code.gs`, and set up the loan sheet headers shown above.
 6. Deploy as a Web app: **Execute as Me**, **Who has access Anyone**. Use its `/exec` URL as `VITE_APPS_SCRIPT_URL`.
 
 After each Apps Script deployment, verify the exact `/exec` URL without writing a row:

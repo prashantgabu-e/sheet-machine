@@ -1,7 +1,8 @@
-// Choice fields intentionally start without options. Add master values to the
-// `options` arrays when they are ready; the UI then becomes a select control.
 export const EVENT_FORM = {
   id: 'event-register',
+  label: 'Event Logs',
+  description: 'Capture an event and save it to the selected timeline.',
+  submitLabel: 'Save event',
   destinations: [
     { id: 'prashant', label: 'Prashant', detail: 'First spreadsheet · Sheet 3' },
     { id: 'khyati', label: 'Khyati', detail: 'First spreadsheet · Sheet 2' },
@@ -24,4 +25,32 @@ export const EVENT_FORM = {
     { column: 'Event Description', label: 'Event description', type: 'textarea', placeholder: 'What happened? Add useful context.', span: 2 },
     { column: 'Tags', label: 'Tags', type: 'tags', placeholder: 'Type a tag, then press Enter or comma', span: 2 },
   ],
+};
+
+export const LOAN_FORM = {
+  id: 'loan-register',
+  label: 'Loan Register',
+  description: 'Record a transfer and its current repayment position.',
+  submitLabel: 'Save loan',
+  fields: [
+    { column: 'Date Transferred', label: 'Date transferred', type: 'date', required: true },
+    { column: 'Sender', label: 'Sender', type: 'person', required: true, options: ['Mummy', 'Alpesh'], placeholder: 'Select or add a sender' },
+    { column: 'Receiver', label: 'Receiver', type: 'person', required: true, options: ['Mummy', 'Alpesh'], placeholder: 'Select or add a receiver' },
+    { column: 'Loan Type', label: 'Loan type', type: 'choice', required: true, options: ['Personal', 'Home', 'Vehicle', 'Business', 'Education', 'Medical', 'Other'] },
+    { column: 'Status', label: 'Status', type: 'choice', required: true, options: ['Active', 'Partially Paid', 'Paid', 'Overdue'] },
+    { column: 'Total Amount', label: 'Total amount', type: 'currency', required: true, min: 0, placeholder: '0' },
+    { column: 'Amount Paid', label: 'Amount paid', type: 'currency', min: 0, defaultValue: '0', placeholder: '0' },
+    { column: 'Outstanding', label: 'Outstanding', type: 'calculated-currency', span: 2 },
+    { column: 'Amount Paid On', label: 'Amount paid on', type: 'date' },
+  ],
+};
+
+export const APP_NAVIGATION = [
+  { id: EVENT_FORM.id, label: EVENT_FORM.label, icon: '◷' },
+  { id: LOAN_FORM.id, label: LOAN_FORM.label, icon: '₹' },
+];
+
+export const FORMS = {
+  [EVENT_FORM.id]: EVENT_FORM,
+  [LOAN_FORM.id]: LOAN_FORM,
 };
