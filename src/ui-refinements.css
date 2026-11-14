@@ -1,0 +1,114 @@
+.field-error {
+  margin: .3rem 0 0;
+  color: #b53148;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.search-select__option mark {
+  padding: 0;
+  background: #ded8ff;
+  color: inherit;
+  font-weight: 800;
+}
+
+/* react-select otherwise expands its control with its internal value padding. */
+.search-select__control {
+  height: 46px !important;
+  min-height: 46px !important;
+}
+
+.search-select__value-container {
+  min-height: 44px !important;
+  padding: 0 10px !important;
+}
+
+.search-select__indicators,
+.search-select__indicator {
+  height: 44px;
+}
+
+.destination-chips {
+  padding: 3px;
+}
+
+.destination-chips .chip {
+  min-height: 42px;
+  padding: .45rem .7rem;
+}
+
+.destination-chips .chip-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Match every empty control's baseline to the Event Name input. */
+.input-field textarea {
+  min-height: 46px;
+}
+
+.tags-box,
+.choice-chips-field .choice-chips {
+  min-height: 46px;
+  align-items: center;
+}
+
+.install-hint {
+  position: fixed;
+  z-index: 20;
+  top: 76px;
+  right: 1.25rem;
+  max-width: min(360px, calc(100vw - 2.5rem));
+  padding: .55rem .75rem;
+  border: 1px solid #d9d2ff;
+  border-radius: 12px;
+  background: #f7f5ff;
+  box-shadow: 0 10px 26px #26385018;
+  color: #5141b5;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .install-hint { top: 66px; right: .75rem; }
+}
+
+/* Compact, horizontal desktop calendar layout. */
+@media (min-width: 640px) {
+  .calendar-popover {
+    padding: .8rem;
+  }
+
+  .calendar-popover .rdp-months {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: .75rem;
+  }
+
+  .calendar-popover .rdp-month {
+    width: 242px;
+  }
+
+  .calendar-popover .rdp-day {
+    width: 34px;
+    height: 34px;
+  }
+
+  .calendar-popover .rdp-day_button {
+    width: 34px;
+    height: 34px;
+    font-size: .76rem;
+  }
+
+  .calendar-popover .rdp-weekday {
+    width: 34px;
+    padding: 0;
+    font-size: .64rem;
+  }
+
+  .calendar-popover .rdp-month_caption {
+    height: 34px;
+  }
+}

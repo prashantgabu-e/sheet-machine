@@ -1,20 +1,6 @@
-/* A soft, rounded range picker that stays compact on the form. */
-.range-trigger { height: 40px; padding: .46rem .7rem; border-radius: 14px; background: linear-gradient(135deg, #fff, #fafbff); box-shadow: 0 2px 7px #23385a08; transition: .18s; }
-.range-trigger:hover, .range-trigger:focus-visible { border-color: #9e90ec; box-shadow: 0 0 0 4px #7462df16; outline: 0; }
-.range-trigger > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #efedff; color: #6452cc; font-size: 1rem; line-height: 1; }
-.calendar-popover { top: calc(100% + 9px); padding: 1rem; border-color: #e2e5f0; border-radius: 24px; background: linear-gradient(145deg, #fff, #fafbff); box-shadow: 0 24px 55px #1b2f5030; overflow: hidden; }
-.calendar-popover .rdp { --rdp-accent-color: #6854d8; --rdp-accent-background-color: #ece9ff; --rdp-range_middle-background-color: #f0eeff; --rdp-range_middle-color: #5845c4; margin: 0; font-size: .82rem; }
-.calendar-popover .rdp-caption_label { font-weight: 800; letter-spacing: -.01em; }
-.calendar-popover .rdp-chevron { fill: #6854d8; }
-.calendar-popover .rdp-day_button { width: 34px; height: 34px; border-radius: 12px; font-weight: 650; transition: background .16s, transform .16s; }
-.calendar-popover .rdp-day_button:hover { background: #eeebff; transform: translateY(-1px); }
-.calendar-popover .rdp-selected .rdp-day_button { border-radius: 12px; background: linear-gradient(135deg, #705cda, #4c8ddd); color: #fff; box-shadow: 0 5px 12px #6653d640; }
-.calendar-popover .rdp-range_start .rdp-day_button { border-radius: 12px 7px 7px 12px; }
-.calendar-popover .rdp-range_end .rdp-day_button { border-radius: 7px 12px 12px 7px; }
-.clear-range { display: block; width: 100%; margin: .65rem 0 0; padding: .5rem; border-radius: 12px; background: #f1efff; transition: .16s; }
-.clear-range:hover { background: #e7e3ff; }
-[data-theme=dark] .range-trigger { border-color: #40506d; background: #16223a; }
-[data-theme=dark] .range-trigger > span { background: #302952; color: #ddd8ff; }
-[data-theme=dark] .calendar-popover { border-color: #40506d; background: #16223a; }
-[data-theme=dark] .calendar-popover .rdp-day_button:hover { background: #302952; }
-[data-theme=dark] .clear-range { background: #302952; color: #ddd8ff; }
+/* Range preview is supplied as a modifier class by DateRangeField. */
+.calendar-popover .rdp-preview { background: #f1efff; }
+.calendar-popover .rdp-preview .rdp-day_button { border-radius: 0; background: transparent; color: #5544b8; }
+.calendar-popover .rdp-today .rdp-day_button { box-shadow: inset 0 0 0 1px #9689e7; }
+
+[data-theme=dark] .calendar-popover .rdp-preview { background: #302952; }

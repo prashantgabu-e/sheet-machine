@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DayPicker } from 'react-day-picker';
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { APP_NAVIGATION, FORMS } from './constants.js';
 import { submitToAppsScript } from './services/form-submit.js';
 import { calculateOutstanding, formatCurrency, validateValues } from './services/forms.js';
@@ -10,14 +11,23 @@ import './pwa.js';
 import './styles.css';
 import './date-picker.css';
 import './pwa.css';
+import './ui.css';
+import './ui-refinements.css';
 import 'react-day-picker/style.css';
 
 const endpoint = import.meta.env.VITE_APPS_SCRIPT_URL;
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const AUTH_STORAGE_KEY = 'sheet-machine-google-identity';
+const spring = { type: 'spring', stiffness: 420, damping: 30 };
+const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 40 }) };
+const localToday = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+const fieldDefaultValue = (field) => field.defaultValue === 'today' ? localToday() : field.defaultValue || '';
 const blankValues = (form) => Object.fromEntries(form.fields.flatMap((field) => field.type === 'date-range'
   ? [[field.startColumn, ''], [field.endColumn, '']]
-  : [[field.column, field.defaultValue || '']]));
+  : [[field.column, fieldDefaultValue(field)]]));
 
 function decodeIdToken(token) {
   try {
@@ -45,6 +55,8 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [googleReady, setGoogleReady] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [installed, setInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
+  const [installHint, setInstallHint] = useState('');
   const googleButtonRef = useRef(null);
 
   useEffect(() => {
@@ -72,10 +84,7 @@ function App() {
     let cancelled = false;
     const restore = async () => {
       const saved = storedIdentity();
-      if (!saved) {
-        if (!cancelled) setAuthState('signed-out');
-        return;
-      }
+      if (!saved) return !cancelled && setAuthState('signed-out');
       try {
         await authorizeIdentity(saved);
         if (!cancelled) setAuthState('authenticated');
@@ -102,12 +111,8 @@ function App() {
         client_id: clientId,
         callback: async ({ credential }) => {
           const claims = decodeIdToken(credential);
-          if (!claims?.email || !claims.exp) {
-            setAuthError('Google Sign-In did not return a usable identity.');
-            return;
-          }
-          setAuthState('authorizing');
-          setAuthError('');
+          if (!claims?.email || !claims.exp) return setAuthError('Google Sign-In did not return a usable identity.');
+          setAuthState('authorizing'); setAuthError('');
           try {
             await authorizeIdentity({ token: credential, email: claims.email, expiresAt: Number(claims.exp) * 1000 });
             setAuthState('authenticated');
@@ -122,9 +127,7 @@ function App() {
     if (window.google?.accounts?.id) initialize();
     else {
       const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.onload = initialize;
+      script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.onload = initialize;
       document.head.append(script);
       return () => script.remove();
     }
@@ -139,68 +142,58 @@ function App() {
 
   useEffect(() => {
     const capture = (event) => { event.preventDefault(); setInstallPrompt(event); };
-    const installed = () => setInstallPrompt(null);
-    window.addEventListener('beforeinstallprompt', capture);
-    window.addEventListener('appinstalled', installed);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', capture);
-      window.removeEventListener('appinstalled', installed);
-    };
+    const onInstalled = () => { setInstallPrompt(null); setInstalled(true); setInstallHint('Sheet Machine is installed.'); };
+    window.addEventListener('beforeinstallprompt', capture); window.addEventListener('appinstalled', onInstalled);
+    return () => { window.removeEventListener('beforeinstallprompt', capture); window.removeEventListener('appinstalled', onInstalled); };
   }, []);
 
   const installApp = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      setInstallPrompt(null);
+      setInstallHint(choice.outcome === 'accepted' ? 'Installing Sheet Machine…' : 'Install was cancelled.');
+      return;
+    }
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setInstallHint(isIos ? 'In Safari, tap Share, then choose “Add to Home Screen”.' : 'Use your browser menu and choose “Install Sheet Machine”.');
   };
-
-  return <>
-    <iframe className="bridge" name="sheetMachineSubmitFrame" title="Sheet Machine submission target" />
-    {identity
-      ? <ApplicationShell identity={identity} theme={theme} setTheme={setTheme} onLogout={clearIdentity} installPrompt={installPrompt} onInstall={installApp} />
-      : <LoginScreen authState={authState} error={authError} buttonRef={googleButtonRef} />}
+  return <><iframe className="bridge" name="sheetMachineSubmitFrame" title="Sheet Machine submission target" />
+    {identity ? <ApplicationShell identity={identity} theme={theme} setTheme={setTheme} onLogout={clearIdentity} canPromptInstall={Boolean(installPrompt)} installed={installed} installHint={installHint} onInstall={installApp} /> : <LoginScreen authState={authState} error={authError} buttonRef={googleButtonRef} />}
   </>;
 }
 
 function LoginScreen({ authState, error, buttonRef }) {
+  const reduceMotion = useReducedMotion();
   const waiting = authState === 'checking' || authState === 'authorizing';
-  return <main className="login-page">
-    <section className="login-card" aria-labelledby="login-title">
-      <div className="login-mark">S</div>
-      <p className="eyebrow">SHEET MACHINE</p>
-      <h1 id="login-title">Welcome back</h1>
-      <p>Sign in with your authorized Google account to record events and loans.</p>
-      {waiting ? <div className="auth-progress" role="status">Verifying your access…</div> : <div ref={buttonRef} className="google-signin" aria-label="Sign in with Google" />}
-      {error && <div className="error" role="alert">{error}</div>}
-    </section>
-  </main>;
+  return <main className="login-page"><motion.section className="login-card" aria-labelledby="login-title" initial={reduceMotion ? false : { opacity: 0, y: 14, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .42, ease: [0.22, 1, 0.36, 1] }}>
+    <div className="login-mark">S</div><p className="eyebrow">SHEET MACHINE</p><h1 id="login-title">Welcome back</h1>
+    <p>Sign in with your authorized Google account to record events and loans.</p>
+    {waiting ? <div className="auth-progress" role="status"><Spinner /> Verifying your access…</div> : <div ref={buttonRef} className="google-signin" aria-label="Sign in with Google" />}
+    {error && <div className="error" role="alert">{error}</div>}
+  </motion.section></main>;
 }
 
-function ApplicationShell({ identity, theme, setTheme, onLogout, installPrompt, onInstall }) {
+function ApplicationShell({ identity, theme, setTheme, onLogout, canPromptInstall, installed, installHint, onInstall }) {
   const [activeFormId, setActiveFormId] = useState('event-register');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const form = FORMS[activeFormId];
   const navigate = (nextId) => { setActiveFormId(nextId); setSidebarOpen(false); };
-  return <div className="app-shell">
-    <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Primary navigation">
-      <a className="brand sidebar-brand" href={import.meta.env.BASE_URL}><span className="brand-mark">S</span><span>Sheet Machine</span></a>
-      <nav className="sidebar-nav">
-        <p>Workspace</p>
-        {APP_NAVIGATION.map((item) => <button key={item.id} type="button" className={activeFormId === item.id ? 'nav-item active' : 'nav-item'} onClick={() => navigate(item.id)}><span aria-hidden="true">{item.icon}</span>{item.label}</button>)}
-      </nav>
-      <div className="sidebar-account"><span className="presence" /><span title={identity.email}>{identity.email}</span></div>
-    </aside>
-    {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+  return <div className="app-shell"><aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Primary navigation">
+    <a className="brand sidebar-brand" href={import.meta.env.BASE_URL}><span className="brand-mark">S</span><span>Sheet Machine</span></a>
+    <nav className="sidebar-nav"><p>Workspace</p>{APP_NAVIGATION.map((item) => <motion.button key={item.id} type="button" className={activeFormId === item.id ? 'nav-item active' : 'nav-item'} onClick={() => navigate(item.id)} whileTap={{ scale: .97 }}><span aria-hidden="true">{item.icon}</span>{item.label}</motion.button>)}</nav>
+    <div className="sidebar-account"><span className="presence" /><span title={identity.email}>{identity.email}</span></div>
+  </aside>{sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
     <section className="app-content">
       <header className="topbar">
         <button type="button" className="menu-button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}>☰</button>
         <div className="top-actions">
-          {installPrompt && <button className="install-button" type="button" onClick={onInstall}>Install app</button>}
+          {!installed && <button className="install-button" type="button" onClick={onInstall}>{canPromptInstall ? 'Install app' : 'Install help'}</button>}
           <select className="theme-select" aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
           <button className="logout-button" type="button" onClick={onLogout}>Log out</button>
         </div>
       </header>
+      {installHint && <div className="install-hint" role="status">{installHint}</div>}
       <main className="page"><FormPage key={form.id} form={form} identity={identity} /></main>
     </section>
   </div>;
@@ -209,42 +202,50 @@ function ApplicationShell({ identity, theme, setTheme, onLogout, installPrompt, 
 function FormPage({ form, identity }) {
   const [values, setValues] = useState(() => blankValues(form));
   const [destination, setDestination] = useState(form.destinations?.[0]?.id || '');
-  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [saveState, setSaveState] = useState('idle');
+  const [ready, setReady] = useState(false);
+  const [toast, setToast] = useState(null);
+  const reduceMotion = useReducedMotion();
   const isLoanForm = form.id === 'loan-register';
-  const setFieldValue = (field, value) => setValues((current) => ({ ...current, ...(typeof value === 'object' ? value : { [field.column]: value }) }));
-
+  useEffect(() => { const timer = setTimeout(() => setReady(true), reduceMotion ? 0 : 240); return () => clearTimeout(timer); }, [reduceMotion]);
+  useEffect(() => { if (!toast) return undefined; const timer = setTimeout(() => setToast(null), 3400); return () => clearTimeout(timer); }, [toast]);
+  const setFieldValue = (field, value) => {
+    const errorKey = field.type === 'date-range' ? field.startColumn : field.column;
+    setValues((current) => ({ ...current, ...(typeof value === 'object' ? value : { [field.column]: value }) }));
+    setFieldErrors((current) => { const next = { ...current }; delete next[errorKey]; return next; });
+  };
   const submit = async (event) => {
-    event.preventDefault();
-    setError('');
-    setNotice('');
+    event.preventDefault(); setError(''); setFieldErrors({});
     if (!endpoint) return setError('Missing VITE_APPS_SCRIPT_URL configuration.');
     const issues = validateValues(form.fields, values, form.id);
-    if (Object.keys(issues).length) return setError(Object.values(issues)[0]);
+    if (Object.keys(issues).length) { const message = Object.values(issues)[0]; setFieldErrors(issues); setToast({ type: 'error', message }); return; }
     const submissionValues = { ...values, ...(form.destinations ? { destination } : {}) };
     if (isLoanForm) submissionValues.Outstanding = calculateOutstanding(values);
-    setSubmitting(true);
+    setSaveState('saving');
     try {
       await submitToAppsScript({ endpoint, formId: form.id, idToken: identity.token, values: submissionValues });
-      setValues(blankValues(form));
-      setNotice(isLoanForm ? 'Loan saved successfully.' : 'Event saved successfully.');
-    } catch (submissionError) {
-      setError(submissionError.message);
-    } finally { setSubmitting(false); }
+      setValues(blankValues(form)); setSaveState('success'); setToast({ type: 'success', message: isLoanForm ? 'Loan saved successfully.' : 'Event saved successfully.' });
+      setTimeout(() => setSaveState('idle'), 1200);
+    } catch (submissionError) { setSaveState('idle'); setError(submissionError.message); setToast({ type: 'error', message: submissionError.message }); }
   };
-
-  return <>
-    <div className="page-heading"><p className="eyebrow">{isLoanForm ? 'MONEY TRACKING' : 'MEMORY TIMELINE'}</p><h1>{form.label}</h1><p>{form.description}</p></div>
-    <form className="panel" onSubmit={submit}>
-      {form.destinations && <div className="destination-chips" role="radiogroup" aria-label="Event destination">{form.destinations.map((item) => <button type="button" role="radio" aria-checked={destination === item.id} className={destination === item.id ? 'chip active' : 'chip'} key={item.id} onClick={() => setDestination(item.id)}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div>}
-      <div className="field-grid">{form.fields.map((field) => <Field key={field.column} field={field} value={values[field.column]} values={values} onChange={(value) => setFieldValue(field, value)} />)}</div>
-      {error && <div className="error" role="alert">{error}</div>}
-      {notice && <div className="notice" role="status">✓ {notice}</div>}
-      <div className="form-footer"><p>{isLoanForm ? 'Outstanding is calculated automatically.' : 'Your event is saved to the selected timeline.'}</p><button disabled={submitting}>{submitting ? 'Saving…' : `${form.submitLabel} →`}</button></div>
+  return <><AnimatePresence mode="wait">{ready ? <motion.div key="form" initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .3 }}>
+    <form className={`panel ${error ? 'has-error' : ''}`} onSubmit={submit}>
+      {form.destinations && <DestinationTabs destinations={form.destinations} destination={destination} onChange={setDestination} />}
+      <motion.div key={form.destinations ? destination : form.id} className="field-grid" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: reduceMotion ? 0 : .04 } } }}>{form.fields.map((field) => { const fieldError = fieldErrors[field.type === 'date-range' ? field.startColumn : field.column]; return <motion.div key={field.column} variants={{ hidden: { opacity: 0, y: 7 }, visible: { opacity: 1, y: 0 } }}><Field field={field} value={values[field.column]} values={values} onChange={(value) => setFieldValue(field, value)} /><AnimatePresence>{fieldError && <motion.p className="field-error" role="alert" initial={{ opacity: 0, height: 0, y: -4 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}>{fieldError}</motion.p>}</AnimatePresence></motion.div>; })}</motion.div>
+      <AnimatePresence>{error && <motion.div className="error inline-error" role="alert" initial={{ opacity: 0, height: 0, y: -4 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}>{error}</motion.div>}</AnimatePresence>
+      <div className="form-footer"><p>{isLoanForm ? 'Outstanding is calculated automatically.' : 'Your event is saved to the selected timeline.'}</p><SaveButton state={saveState} label={form.submitLabel} /></div>
     </form>
-  </>;
+  </motion.div> : <FormSkeleton />}</AnimatePresence><Toast toast={toast} /></>;
 }
+
+function DestinationTabs({ destinations, destination, onChange }) { return <div className="destination-chips" role="radiogroup" aria-label="Event destination">{destinations.map((item) => <motion.button type="button" role="radio" aria-checked={destination === item.id} className={destination === item.id ? 'chip active' : 'chip'} key={item.id} onClick={() => onChange(item.id)} whileHover={{ y: -1 }} whileTap={{ scale: .98 }}>{destination === item.id && <motion.span className="chip-indicator" layoutId="destination-indicator" transition={spring} />}<span className="chip-content"><strong>{item.label}</strong></span></motion.button>)}</div>; }
+
+function SaveButton({ state, label }) { return <motion.button className={`save-button ${state}`} disabled={state !== 'idle'} whileTap={state === 'idle' ? { scale: .97 } : undefined} type="submit"><AnimatePresence mode="wait" initial={false}>{state === 'saving' ? <motion.span key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><Spinner /> Saving…</motion.span> : state === 'success' ? <motion.span key="success" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>✓ Saved</motion.span> : <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>{label} <b>→</b></motion.span>}</AnimatePresence></motion.button>; }
+function Spinner() { return <i className="spinner" aria-hidden="true" />; }
+function Toast({ toast }) { return <AnimatePresence>{toast && <motion.div className={`toast ${toast.type}`} role="status" initial={{ opacity: 0, y: 16, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: .96 }} transition={{ duration: .22 }}><span>{toast.type === 'success' ? '✓' : '!'}</span>{toast.message}</motion.div>}</AnimatePresence>; }
+function FormSkeleton() { return <div className="skeleton-wrap" aria-label="Loading form"><div className="skeleton heading" /><div className="skeleton subheading" /><div className="panel skeleton-panel"><div className="skeleton tabs" />{Array.from({ length: 8 }, (_, index) => <div key={index} className={`skeleton field field-${index}`} />)}</div></div>; }
 
 function Field({ field, value, onChange, values }) {
   const id = `field-${field.column.replaceAll(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
@@ -258,64 +259,45 @@ function Field({ field, value, onChange, values }) {
   if (field.type === 'url') return <UrlField field={field} value={value} onChange={onChange} />;
   if (field.type === 'currency') return <CurrencyField field={field} value={value} onChange={onChange} />;
   if (field.type === 'calculated-currency') return <CalculatedCurrencyField field={field} values={values} />;
-  return <label className={className} htmlFor={id}><FieldLabel field={field} />
-    {field.type === 'textarea' ? <textarea id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />
-      : choiceSelect ? <Select inputId={id} classNamePrefix="search-select" isSearchable options={field.options.map((option) => ({ value: option, label: option }))} value={value ? { value, label: value } : null} onChange={(option) => onChange(option?.value || '')} placeholder="Search or select…" noOptionsMessage={() => 'No matching option'} />
-        : <input id={id} type={field.type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}
-  </label>;
+  return <label className={className} htmlFor={id}><FieldLabel field={field} />{field.type === 'textarea' ? <AutoGrowTextarea id={id} value={value} onChange={onChange} placeholder={field.placeholder} /> : choiceSelect ? <AnimatedSelect inputId={id} field={field} value={value} onChange={onChange} /> : <input id={id} type={field.type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}</label>;
 }
 
-function FieldLabel({ field }) { return <span>{field.label}{field.required && <b> *</b>}</span>; }
+function FieldLabel({ field }) { return <span className="field-label">{field.label}{field.required && <b> *</b>}</span>; }
+function AnimatedSelect({ inputId, field, value, onChange }) { return <Select inputId={inputId} classNamePrefix="search-select" isSearchable options={field.options.map((option) => ({ value: option, label: option }))} value={value ? { value, label: value } : null} onChange={(option) => onChange(option?.value || '')} placeholder="Search or select…" noOptionsMessage={() => 'No matching option'} components={{ Option: SelectOption }} menuPortalTarget={document.body} menuPosition="fixed" styles={selectStyles} />; }
+function SelectOption(props) { return <components.Option {...props}><span><HighlightMatch text={String(props.children)} query={props.selectProps.inputValue} /></span>{props.isSelected && <span className="select-check">✓</span>}</components.Option>; }
+function HighlightMatch({ text, query }) { if (!query) return text; const pieces = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig')); return <>{pieces.map((piece, index) => piece.toLowerCase() === query.toLowerCase() ? <mark key={index}>{piece}</mark> : piece)}</>; }
 
 function CurrencyField({ field, value, onChange }) {
-  return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><div className="currency-control"><span aria-hidden="true">₹</span><input type="number" min={field.min} step="0.01" value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /></div></label>;
+  const [focused, setFocused] = useState(false);
+  const displayValue = focused || value === '' ? value : new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value));
+  return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><div className="currency-control"><span aria-hidden="true">₹</span><input inputMode="decimal" value={displayValue} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={(event) => onChange(event.target.value.replaceAll(',', ''))} placeholder={field.placeholder} /></div></label>;
 }
+function CalculatedCurrencyField({ field, values }) { return <div className={`input-field calculated-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><output>{formatCurrency(calculateOutstanding(values))}</output></div>; }
+function PersonField({ field, value, onChange }) { const options = [...new Set([...field.options, ...(value ? [value] : [])])].map((name) => ({ value: name, label: name })); return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><CreatableSelect classNamePrefix="search-select" isSearchable options={options} value={value ? { value, label: value } : null} onChange={(selected) => onChange(selected?.value?.trim() || '')} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} components={{ Option: SelectOption }} menuPortalTarget={document.body} menuPosition="fixed" styles={selectStyles} /></label>; }
 
-function CalculatedCurrencyField({ field, values }) {
-  return <div className={`input-field calculated-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><output>{formatCurrency(calculateOutstanding(values))}</output></div>;
-}
-
-function PersonField({ field, value, onChange }) {
-  const options = [...new Set([...field.options, ...(value ? [value] : [])])].map((name) => ({ value: name, label: name }));
-  return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><CreatableSelect classNamePrefix="search-select" isSearchable options={options} value={value ? { value, label: value } : null} onChange={(selected) => onChange(selected?.value?.trim() || '')} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} /></label>;
-}
-
-function ChoiceChipField({ field, value, onChange }) {
-  return <div className={`input-field choice-chips-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><div className="choice-chips" role="radiogroup" aria-label={field.label}>{field.options.map((option) => <button key={option} type="button" role="radio" aria-checked={value === option} className={`choice-chip ${field.chipTone} option-${option.toLowerCase().replaceAll(/[^a-z]+/g, '-')}${value === option ? ' active' : ''}`} onClick={() => onChange(option)}><ChoiceIcon field={field.column} option={option} />{option}</button>)}</div></div>;
-}
-
-const CHOICE_ICONS = {
-  'Event Type': { Personal: '●', Family: '♡', Social: '◉', Professional: '▣' },
-  'Emotional Importance': { Low: '↓', Medium: '−', High: '↑', 'Life-Changing': '✦' },
-  'Event Status': { Planned: '◷', Ongoing: '◌', Completed: '✓', Cancelled: '×' },
-};
-
+function ChoiceChipField({ field, value, onChange }) { return <div className={`input-field choice-chips-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><div className="choice-chips" role="radiogroup" aria-label={field.label}>{field.options.map((option) => <motion.button key={option} type="button" role="radio" aria-checked={value === option} className={`choice-chip ${field.chipTone} option-${option.toLowerCase().replaceAll(/[^a-z]+/g, '-')}${value === option ? ' active' : ''}`} onClick={() => onChange(option)} whileTap={{ scale: .96 }}>{value === option && <motion.span className="choice-active-pill" layoutId={`choice-${field.column}`} transition={spring} />}<span className="choice-content"><ChoiceIcon field={field.column} option={option} />{option}</span></motion.button>)}</div></div>; }
+const CHOICE_ICONS = { 'Event Type': { Personal: '●', Family: '♡', Social: '◉', Professional: '▣' }, 'Emotional Importance': { Low: '↓', Medium: '−', High: '↑', 'Life-Changing': '✦' }, 'Event Status': { Planned: '◷', Ongoing: '◌', Completed: '✓', Cancelled: '×' } };
 function ChoiceIcon({ field, option }) { return <span className="choice-chip-icon" aria-hidden="true">{CHOICE_ICONS[field]?.[option] || '•'}</span>; }
+
+function useCompactCalendar() { const [compact, setCompact] = useState(() => window.innerWidth < 640); useEffect(() => { const update = () => setCompact(window.innerWidth < 640); window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }, []); return compact; }
 function toLocalDate(value) { if (!value) return undefined; const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
 function toDateValue(date) { if (!date) return ''; return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-
+function rangeSummary(range) { if (!range?.from) return 'Select a start and end date'; const start = range.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); if (!range.to) return `${start} — select an end date`; const end = range.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); const days = Math.round((range.to - range.from) / 86400000) + 1; return `${start} – ${end} (${days} ${days === 1 ? 'day' : 'days'})`; }
+function CalendarIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3m10-3v3M4.5 9h15M6 4h12a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 18 20H6a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 6 4Z" /></svg>; }
 function DateRangeField({ field, values, onChange }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); const [hoveredDay, setHoveredDay] = useState(null); const compact = useCompactCalendar(); const reduceMotion = useReducedMotion(); const ref = useRef(null);
   const selected = { from: toLocalDate(values[field.startColumn]), to: toLocalDate(values[field.endColumn]) };
-  const label = selected.from ? `${selected.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}${selected.to ? ` → ${selected.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ' → Select end date'}` : 'Select start and end dates';
-  return <div className="input-field wide range-field"><FieldLabel field={field} /><button type="button" className="range-trigger" onClick={() => setOpen(!open)}>{label}<span>⌄</span></button>{open && <div className="calendar-popover"><DayPicker mode="range" min={0} selected={selected.from ? selected : undefined} onSelect={(range) => { onChange({ [field.startColumn]: toDateValue(range?.from), [field.endColumn]: toDateValue(range?.to) }); if (range?.from && range?.to) setOpen(false); }} numberOfMonths={2} captionLayout="dropdown" /><button type="button" className="clear-range" onClick={() => { onChange({ [field.startColumn]: '', [field.endColumn]: '' }); setOpen(false); }}>Clear dates</button></div>}</div>;
+  const [draft, setDraft] = useState(selected);
+  useEffect(() => { if (open) setDraft(selected); }, [open, values[field.startColumn], values[field.endColumn]]);
+  useEffect(() => { if (!open) return undefined; const close = (event) => { if (!ref.current?.contains(event.target)) setOpen(false); }; const keydown = (event) => { if (event.key === 'Escape') setOpen(false); }; document.addEventListener('mousedown', close); document.addEventListener('keydown', keydown); return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', keydown); }; }, [open]);
+  const apply = () => { onChange({ [field.startColumn]: toDateValue(draft?.from), [field.endColumn]: toDateValue(draft?.to) }); setOpen(false); };
+  const isPreviewDay = (day) => draft?.from && !draft?.to && hoveredDay && day > draft.from && day <= hoveredDay;
+  return <div className="input-field wide range-field" ref={ref}><FieldLabel field={field} /><button type="button" className="range-trigger" onClick={() => setOpen((shown) => !shown)} aria-expanded={open} aria-haspopup="dialog"><span>{rangeSummary(selected)}</span><CalendarIcon /></button><AnimatePresence>{open && <motion.div className="calendar-popover" role="dialog" aria-label="Choose event dates" initial={reduceMotion ? false : { opacity: 0, y: -6, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: .98 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}><DayPicker mode="range" animate selected={draft?.from ? draft : undefined} onSelect={(range) => { setDraft(range); if (range?.to) setHoveredDay(null); }} onDayMouseEnter={(day) => setHoveredDay(day)} onDayMouseLeave={() => setHoveredDay(null)} modifiers={{ preview: isPreviewDay }} modifiersClassNames={{ preview: 'rdp-preview' }} classNames={{ today: 'rdp-today' }} numberOfMonths={compact ? 1 : 2} showOutsideDays={false} navLayout="around" /><div className="calendar-footer"><button type="button" className="clear-range" onClick={() => setDraft({ from: undefined, to: undefined })}>Clear dates</button><span>{rangeSummary(draft)}</span><button type="button" className="apply-range" onClick={apply}>Apply</button></div></motion.div>}</AnimatePresence></div>;
 }
 
-function TagsField({ field, value, onChange }) {
-  const [draft, setDraft] = useState(''); const tags = value ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : [];
-  const add = () => { const next = draft.trim().replace(/,/g, ''); if (!next || tags.includes(next)) return setDraft(''); onChange([...tags, next].join(', ')); setDraft(''); };
-  return <label className="input-field wide"><FieldLabel field={field} /><div className="tags-box">{tags.map((tag) => <button type="button" className="tag" key={tag} onClick={() => onChange(tags.filter((item) => item !== tag).join(', '))}>{tag}<span>×</span></button>)}<input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Backspace' && !draft && tags.length) { onChange(tags.slice(0, -1).join(', ')); return; } if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); add(); } }} onBlur={add} placeholder={field.placeholder} /></div></label>;
-}
-
-function PeopleField({ field, value, onChange }) {
-  const people = value ? value.split(',').map((name) => name.trim()).filter(Boolean) : [];
-  const options = [...new Set([...field.options, ...people])].map((name) => ({ value: name, label: name }));
-  return <label className="input-field"><FieldLabel field={field} /><CreatableSelect classNamePrefix="search-select" isMulti isSearchable options={options} value={people.map((name) => ({ value: name, label: name }))} onChange={(selected) => onChange((selected || []).map((option) => option.value.trim()).filter(Boolean).join(', '))} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} /></label>;
-}
-
-function UrlField({ field, value, onChange }) {
-  const paste = async () => { try { onChange(await navigator.clipboard.readText()); } catch { /* Clipboard permission was not granted. */ } };
-  return <label className="input-field wide"><FieldLabel field={field} /><div className="url-control"><input type="url" value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /><button type="button" onClick={paste} aria-label="Paste from clipboard" title="Paste from clipboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v2H9zM7 6h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v11h10V8H7zm3 3h4v2h-4zm0 4h4v2h-4z" /></svg></button></div></label>;
-}
+function TagsField({ field, value, onChange }) { const [draft, setDraft] = useState(''); const tags = value ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : []; const add = () => { const next = draft.trim().replace(/,/g, ''); if (!next || tags.includes(next)) return setDraft(''); onChange([...tags, next].join(', ')); setDraft(''); }; return <label className="input-field wide"><FieldLabel field={field} /><div className="tags-box"><AnimatePresence initial={false}>{tags.map((tag) => <motion.button type="button" className="tag" key={tag} onClick={() => onChange(tags.filter((item) => item !== tag).join(', '))} initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .8 }}>{tag}<span>×</span></motion.button>)}</AnimatePresence><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Backspace' && !draft && tags.length) onChange(tags.slice(0, -1).join(', ')); if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); add(); } }} onBlur={add} placeholder={field.placeholder} /></div></label>; }
+function PeopleField({ field, value, onChange }) { const people = value ? value.split(',').map((name) => name.trim()).filter(Boolean) : []; const options = [...new Set([...field.options, ...people])].map((name) => ({ value: name, label: name })); return <label className="input-field"><FieldLabel field={field} /><CreatableSelect classNamePrefix="search-select" isMulti isSearchable options={options} value={people.map((name) => ({ value: name, label: name }))} onChange={(selected) => onChange((selected || []).map((option) => option.value.trim()).filter(Boolean).join(', '))} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} components={{ Option: SelectOption }} menuPortalTarget={document.body} menuPosition="fixed" styles={selectStyles} /></label>; }
+function UrlField({ field, value, onChange }) { const [pasted, setPasted] = useState(false); const paste = async () => { try { onChange(await navigator.clipboard.readText()); setPasted(true); setTimeout(() => setPasted(false), 1200); } catch { /* Clipboard permission was not granted. */ } }; return <label className="input-field wide"><FieldLabel field={field} /><div className="url-control"><input type="url" value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} /><button type="button" onClick={paste} aria-label="Paste from clipboard" title={pasted ? 'Pasted' : 'Paste from clipboard'}>{pasted ? '✓' : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v2H9zM7 6h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v11h10V8H7zm3 3h4v2h-4zm0 4h4v2h-4z" /></svg>}</button></div></label>; }
+function AutoGrowTextarea({ id, value, onChange, placeholder }) { const ref = useRef(null); const resize = () => { if (ref.current) { ref.current.style.height = 'auto'; ref.current.style.height = `${ref.current.scrollHeight}px`; } }; useEffect(resize, [value]); return <textarea ref={ref} id={id} value={value} onChange={(event) => { onChange(event.target.value); requestAnimationFrame(resize); }} placeholder={placeholder} />; }
 
 createRoot(document.getElementById('root')).render(<App />);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APP_NAVIGATION, LOAN_FORM } from '../constants.js';
+import { APP_NAVIGATION, EVENT_FORM, LOAN_FORM } from '../constants.js';
 import { calculateOutstanding, validateValues } from './forms.js';
 
 describe('form validation', () => {
@@ -30,5 +30,13 @@ describe('form validation', () => {
 
   it('starts the sidebar with Event Logs and has no dashboard item', () => {
     expect(APP_NAVIGATION.map((item) => item.label)).toEqual(['Event Logs', 'Loan Register']);
+  });
+
+  it('defines the requested initial choices for new forms', () => {
+    expect(EVENT_FORM.fields.find((field) => field.column === 'Event Type').defaultValue).toBe('Personal');
+    expect(EVENT_FORM.fields.find((field) => field.column === 'Event Status').defaultValue).toBe('Completed');
+    expect(LOAN_FORM.fields.find((field) => field.column === 'Loan Type').defaultValue).toBe('Personal');
+    expect(LOAN_FORM.fields.find((field) => field.column === 'Status').defaultValue).toBe('Active');
+    expect(LOAN_FORM.fields.find((field) => field.column === 'Date Transferred').defaultValue).toBe('today');
   });
 });

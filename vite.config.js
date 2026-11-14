@@ -10,6 +10,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Let Chrome evaluate the localhost dev server as an installable PWA too.
+      devOptions: {
+        enabled: true,
+      },
       includeAssets: ['favicon.svg', 'pwa-icon.svg'],
       manifest: {
         name: 'Sheet Machine',

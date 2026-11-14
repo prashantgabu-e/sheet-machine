@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "framer-motion": "^14.14.0",
     "react": "latest",
     "react-day-picker": "latest",
     "react-dom": "latest",
@@ -19,10 +20,10 @@
     "vite-plugin-pwa": "latest"
   },
   "devDependencies": {
-    "vite": "latest",
-    "vitest": "latest",
-    "jsdom": "latest",
+    "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
-    "@testing-library/jest-dom": "latest"
+    "jsdom": "latest",
+    "vite": "latest",
+    "vitest": "latest"
   }
 }
