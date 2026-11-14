@@ -50,8 +50,26 @@
 
 .tags-box,
 .choice-chips-field .choice-chips {
+  height: 46px;
   min-height: 46px;
   align-items: center;
+}
+
+.tags-box {
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+}
+
+.choice-chips-field .choice-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 5px 0;
+}
+
+.choice-chips-field .choice-chip {
+  flex: 0 0 auto;
 }
 
 .install-hint {
