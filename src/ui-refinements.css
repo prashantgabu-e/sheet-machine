@@ -48,10 +48,11 @@
   min-height: 46px;
 }
 
-.tags-box,
-.choice-chips-field .choice-chips {
-  height: 46px;
+.tags-box {
+  box-sizing: border-box;
+  height: 46px !important;
   min-height: 46px;
+  max-height: 46px;
   align-items: center;
 }
 
@@ -62,14 +63,76 @@
 }
 
 .choice-chips-field .choice-chips {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 5px 0;
+  min-height: 46px;
+  flex-wrap: wrap;
+  overflow: visible;
+  padding: 0;
 }
 
 .choice-chips-field .choice-chip {
   flex: 0 0 auto;
+}
+
+.input-field {
+  gap: 4px;
+}
+
+.field-label {
+  display: block;
+  padding: 0;
+  line-height: 16px;
+}
+
+/* One clean control border and consistent internal spacing for every react-select field. */
+.search-select__control {
+  height: 44px !important;
+  min-height: 44px !important;
+  border: 1px solid #d8dfeb !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.search-select__control--is-focused {
+  border-color: #705adb !important;
+  box-shadow: 0 0 0 2px #705adb1f !important;
+}
+
+.search-select__value-container {
+  min-height: 42px !important;
+  padding: 0 11px !important;
+}
+
+.search-select__input-container,
+.search-select__single-value,
+.search-select__placeholder {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.search-select__indicator {
+  padding: 9px !important;
+}
+
+.search-select__indicator-separator {
+  height: 24px !important;
+  margin: 0 2px !important;
+  background-color: #d8dfeb !important;
+}
+
+.search-select__menu {
+  margin-top: 6px !important;
+  border: 1px solid #dce2ee !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 28px #2638501c !important;
+}
+
+.search-select__menu-list {
+  padding: 4px !important;
+}
+
+.search-select__option {
+  min-height: 38px;
+  padding: 8px 10px !important;
 }
 
 .install-hint {
