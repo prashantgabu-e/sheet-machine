@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DayPicker } from 'react-day-picker';
+import DatePicker from 'react-datepicker';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -9,15 +9,15 @@ import { submitToAppsScript } from './services/form-submit.js';
 import { calculateOutstanding, formatCurrency, validateValues } from './services/forms.js';
 import './pwa.js';
 import './styles.css';
-import './date-picker.css';
 import './pwa.css';
 import './ui.css';
 import './ui-refinements.css';
-import 'react-day-picker/style.css';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const endpoint = import.meta.env.VITE_APPS_SCRIPT_URL;
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const AUTH_STORAGE_KEY = 'sheet-machine-google-identity';
+const AUTO_LOGIN_DISABLED_KEY = 'sheet-machine-auto-login-disabled';
 const spring = { type: 'spring', stiffness: 420, damping: 30 };
 const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 40 }) };
 const localToday = () => {
@@ -58,6 +58,7 @@ function App() {
   const [installed, setInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
   const [installHint, setInstallHint] = useState('');
   const googleButtonRef = useRef(null);
+  const autoLoginDisabled = useRef(sessionStorage.getItem(AUTO_LOGIN_DISABLED_KEY) === 'true');
 
   useEffect(() => {
     const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -66,6 +67,8 @@ function App() {
   }, [theme]);
 
   const clearIdentity = useCallback(() => {
+    autoLoginDisabled.current = true;
+    sessionStorage.setItem(AUTO_LOGIN_DISABLED_KEY, 'true');
     localStorage.removeItem(AUTH_STORAGE_KEY);
     window.google?.accounts?.id?.disableAutoSelect();
     setIdentity(null);
@@ -75,6 +78,8 @@ function App() {
   const authorizeIdentity = useCallback(async (nextIdentity) => {
     if (!endpoint) throw new Error('Missing VITE_APPS_SCRIPT_URL configuration.');
     await submitToAppsScript({ endpoint, formId: 'auth-check', idToken: nextIdentity.token, values: {} });
+    autoLoginDisabled.current = false;
+    sessionStorage.removeItem(AUTO_LOGIN_DISABLED_KEY);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextIdentity));
     setIdentity(nextIdentity);
     setAuthError('');
@@ -109,6 +114,7 @@ function App() {
     const initialize = () => {
       window.google.accounts.id.initialize({
         client_id: clientId,
+        auto_select: true,
         callback: async ({ credential }) => {
           const claims = decodeIdToken(credential);
           if (!claims?.email || !claims.exp) return setAuthError('Google Sign-In did not return a usable identity.');
@@ -133,6 +139,21 @@ function App() {
     }
     return undefined;
   }, [authorizeIdentity, clearIdentity]);
+
+  useEffect(() => {
+    if (!googleReady || authState !== 'signed-out' || autoLoginDisabled.current || !window.google?.accounts?.id) return;
+    window.google.accounts.id.prompt();
+  }, [authState, googleReady]);
+
+  useEffect(() => {
+    if (!identity) return undefined;
+    const renewIn = Math.max(0, identity.expiresAt - Date.now() - (5 * 60 * 1000));
+    const timer = window.setTimeout(() => {
+      setIdentity(null);
+      setAuthState('signed-out');
+    }, renewIn);
+    return () => window.clearTimeout(timer);
+  }, [identity]);
 
   useEffect(() => {
     if (!googleReady || authState !== 'signed-out' || !googleButtonRef.current || !window.google?.accounts?.id) return;
@@ -260,10 +281,13 @@ function Field({ field, value, onChange, values }) {
   if (field.type === 'url') return <UrlField field={field} value={value} onChange={onChange} />;
   if (field.type === 'currency') return <CurrencyField field={field} value={value} onChange={onChange} />;
   if (field.type === 'calculated-currency') return <CalculatedCurrencyField field={field} values={values} />;
-  return <label className={className} htmlFor={id}><FieldLabel field={field} />{field.type === 'textarea' ? <AutoGrowTextarea id={id} value={value} onChange={onChange} placeholder={field.placeholder} /> : choiceSelect ? <AnimatedSelect inputId={id} field={field} value={value} onChange={onChange} /> : <input id={id} type={field.type} lang={field.type === 'date' ? 'en-GB' : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}</label>;
+  return <label className={className} htmlFor={id}><FieldLabel field={field} />{field.type === 'textarea' ? <AutoGrowTextarea id={id} value={value} onChange={onChange} placeholder={field.placeholder} /> : choiceSelect ? <AnimatedSelect inputId={id} field={field} value={value} onChange={onChange} /> : field.type === 'date' ? <DateTextField id={id} value={value} onChange={onChange} /> : <input id={id} type={field.type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}</label>;
 }
 
 function FieldLabel({ field }) { return <span className="field-label">{field.label}{field.required && <b> *</b>}</span>; }
+function DateTextField({ id, value, onChange }) {
+  return <div className="date-control"><DatePicker id={id} selected={toLocalDate(value)} onChange={(date) => onChange(toDateValue(date))} dateFormat="dd/MM/yyyy" placeholderText="DD/MM/YYYY" className="date-text-input" calendarClassName="sheet-datepicker" popperClassName="sheet-datepicker-popper" showPopperArrow={false} /></div>;
+}
 function AnimatedSelect({ inputId, field, value, onChange }) { return <Select inputId={inputId} classNamePrefix="search-select" isSearchable options={field.options.map((option) => ({ value: option, label: option }))} value={value ? { value, label: value } : null} onChange={(option) => onChange(option?.value || '')} placeholder="Search or select…" noOptionsMessage={() => 'No matching option'} components={{ Option: SelectOption }} menuPortalTarget={document.body} menuPosition="fixed" styles={selectStyles} />; }
 function SelectOption(props) { return <components.Option {...props}><span><HighlightMatch text={String(props.children)} query={props.selectProps.inputValue} /></span>{props.isSelected && <span className="select-check">✓</span>}</components.Option>; }
 function HighlightMatch({ text, query }) { if (!query) return text; const pieces = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig')); return <>{pieces.map((piece, index) => piece.toLowerCase() === query.toLowerCase() ? <mark key={index}>{piece}</mark> : piece)}</>; }
@@ -292,17 +316,10 @@ function ChoiceIcon({ field, option }) { return <span className="choice-chip-ico
 function useCompactCalendar() { const [compact, setCompact] = useState(() => window.innerWidth < 640); useEffect(() => { const update = () => setCompact(window.innerWidth < 640); window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }, []); return compact; }
 function toLocalDate(value) { if (!value) return undefined; const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
 function toDateValue(date) { if (!date) return ''; return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-function rangeSummary(range) { if (!range?.from) return 'Select a start and end date'; const start = range.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); if (!range.to) return `${start} — select an end date`; const end = range.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); const days = Math.round((range.to - range.from) / 86400000) + 1; return `${start} – ${end} (${days} ${days === 1 ? 'day' : 'days'})`; }
-function CalendarIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3m10-3v3M4.5 9h15M6 4h12a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 18 20H6a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 6 4Z" /></svg>; }
 function DateRangeField({ field, values, onChange }) {
-  const [open, setOpen] = useState(false); const [hoveredDay, setHoveredDay] = useState(null); const compact = useCompactCalendar(); const reduceMotion = useReducedMotion(); const ref = useRef(null);
-  const selected = { from: toLocalDate(values[field.startColumn]), to: toLocalDate(values[field.endColumn]) };
-  const [draft, setDraft] = useState(selected);
-  useEffect(() => { if (open) setDraft(selected); }, [open, values[field.startColumn], values[field.endColumn]]);
-  useEffect(() => { if (!open) return undefined; const close = (event) => { if (!ref.current?.contains(event.target)) setOpen(false); }; const keydown = (event) => { if (event.key === 'Escape') setOpen(false); }; document.addEventListener('mousedown', close); document.addEventListener('keydown', keydown); return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', keydown); }; }, [open]);
-  const apply = () => { onChange({ [field.startColumn]: toDateValue(draft?.from), [field.endColumn]: toDateValue(draft?.to) }); setOpen(false); };
-  const isPreviewDay = (day) => draft?.from && !draft?.to && hoveredDay && day > draft.from && day <= hoveredDay;
-  return <div className="input-field wide range-field" ref={ref}><FieldLabel field={field} /><button type="button" className="range-trigger" onClick={() => setOpen((shown) => !shown)} aria-expanded={open} aria-haspopup="dialog"><span>{rangeSummary(selected)}</span><CalendarIcon /></button><AnimatePresence>{open && <motion.div className="calendar-popover" role="dialog" aria-label="Choose event dates" initial={reduceMotion ? false : { opacity: 0, y: -6, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: .98 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}><DayPicker mode="range" animate selected={draft?.from ? draft : undefined} onSelect={(range) => { setDraft(range); if (range?.to) setHoveredDay(null); }} onDayMouseEnter={(day) => setHoveredDay(day)} onDayMouseLeave={() => setHoveredDay(null)} modifiers={{ preview: isPreviewDay }} modifiersClassNames={{ preview: 'rdp-preview' }} classNames={{ today: 'rdp-today' }} numberOfMonths={compact ? 1 : 2} showOutsideDays={false} navLayout="around" /><div className="calendar-footer"><button type="button" className="clear-range" onClick={() => setDraft({ from: undefined, to: undefined })}>Clear dates</button><span>{rangeSummary(draft)}</span><button type="button" className="apply-range" onClick={apply}>Apply</button></div></motion.div>}</AnimatePresence></div>;
+  const compact = useCompactCalendar();
+  const startDate = toLocalDate(values[field.startColumn]); const endDate = toLocalDate(values[field.endColumn]);
+  return <label className="input-field wide range-field"><FieldLabel field={field} /><DatePicker selected={startDate} onChange={([start, end]) => onChange({ [field.startColumn]: toDateValue(start), [field.endColumn]: toDateValue(end) })} startDate={startDate} endDate={endDate} selectsRange monthsShown={compact ? 1 : 2} dateFormat="dd/MM/yyyy" placeholderText="Select a start and end date" className="range-picker-input" calendarClassName="sheet-datepicker sheet-range-datepicker" popperClassName="sheet-datepicker-popper" showPopperArrow={false} /></label>;
 }
 
 function TagsField({ field, value, onChange }) { const [draft, setDraft] = useState(''); const tags = value ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : []; const add = () => { const next = draft.trim().replace(/,/g, ''); if (!next || tags.includes(next)) return setDraft(''); onChange([...tags, next].join(', ')); setDraft(''); }; return <label className="input-field wide"><FieldLabel field={field} /><div className="tags-box"><AnimatePresence initial={false}>{tags.map((tag) => <motion.button type="button" className="tag" key={tag} onClick={() => onChange(tags.filter((item) => item !== tag).join(', '))} initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .8 }}>{tag}<span>×</span></motion.button>)}</AnimatePresence><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Backspace' && !draft && tags.length) onChange(tags.slice(0, -1).join(', ')); if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); add(); } }} onBlur={add} placeholder={field.placeholder} /></div></label>; }

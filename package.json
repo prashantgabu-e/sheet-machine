@@ -14,7 +14,7 @@
     "@vitejs/plugin-react": "latest",
     "framer-motion": "^14.14.0",
     "react": "latest",
-    "react-day-picker": "latest",
+    "react-datepicker": "^9.1.0",
     "react-dom": "latest",
     "react-select": "latest",
     "vite-plugin-pwa": "latest"
