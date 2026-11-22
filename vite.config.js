@@ -13,6 +13,7 @@ export default defineConfig({
       // Let Chrome evaluate the localhost dev server as an installable PWA too.
       devOptions: {
         enabled: true,
+        suppressWarnings: true,
       },
       includeAssets: ['favicon.svg', 'pwa-icon.svg'],
       manifest: {
