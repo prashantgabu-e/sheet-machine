@@ -256,10 +256,11 @@ function Field({ field, value, onChange, values }) {
   if (field.type === 'tags') return <TagsField field={field} value={value} onChange={onChange} />;
   if (field.type === 'people') return <PeopleField field={field} value={value} onChange={onChange} />;
   if (field.type === 'person') return <PersonField field={field} value={value} onChange={onChange} />;
+  if (field.type === 'location') return <LocationField field={field} value={value} onChange={onChange} />;
   if (field.type === 'url') return <UrlField field={field} value={value} onChange={onChange} />;
   if (field.type === 'currency') return <CurrencyField field={field} value={value} onChange={onChange} />;
   if (field.type === 'calculated-currency') return <CalculatedCurrencyField field={field} values={values} />;
-  return <label className={className} htmlFor={id}><FieldLabel field={field} />{field.type === 'textarea' ? <AutoGrowTextarea id={id} value={value} onChange={onChange} placeholder={field.placeholder} /> : choiceSelect ? <AnimatedSelect inputId={id} field={field} value={value} onChange={onChange} /> : <input id={id} type={field.type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}</label>;
+  return <label className={className} htmlFor={id}><FieldLabel field={field} />{field.type === 'textarea' ? <AutoGrowTextarea id={id} value={value} onChange={onChange} placeholder={field.placeholder} /> : choiceSelect ? <AnimatedSelect inputId={id} field={field} value={value} onChange={onChange} /> : <input id={id} type={field.type} lang={field.type === 'date' ? 'en-GB' : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />}</label>;
 }
 
 function FieldLabel({ field }) { return <span className="field-label">{field.label}{field.required && <b> *</b>}</span>; }
@@ -274,6 +275,15 @@ function CurrencyField({ field, value, onChange }) {
 }
 function CalculatedCurrencyField({ field, values }) { return <div className={`input-field calculated-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><output>{formatCurrency(calculateOutstanding(values))}</output></div>; }
 function PersonField({ field, value, onChange }) { const options = [...new Set([...field.options, ...(value ? [value] : [])])].map((name) => ({ value: name, label: name })); return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><CreatableSelect classNamePrefix="search-select" isSearchable options={options} value={value ? { value, label: value } : null} onChange={(selected) => onChange(selected?.value?.trim() || '')} placeholder={field.placeholder} noOptionsMessage={() => 'Type to add a person'} formatCreateLabel={(name) => `Add “${name}”`} components={{ Option: SelectOption }} menuPortalTarget={document.body} menuPosition="fixed" styles={selectStyles} /></label>; }
+function LocationField({ field, value, onChange }) {
+  const id = `field-${field.column.replaceAll(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+  const listId = `${id}-suggestions`;
+  return <label className={`input-field ${field.span === 2 ? 'wide' : ''}`} htmlFor={id}>
+    <FieldLabel field={field} />
+    <input id={id} type="text" list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} />
+    <datalist id={listId}>{field.options.map((location) => <option key={location} value={location} />)}</datalist>
+  </label>;
+}
 
 function ChoiceChipField({ field, value, onChange }) { return <div className={`input-field choice-chips-field ${field.span === 2 ? 'wide' : ''}`}><FieldLabel field={field} /><div className="choice-chips" role="radiogroup" aria-label={field.label}>{field.options.map((option) => <motion.button key={option} type="button" role="radio" aria-checked={value === option} className={`choice-chip ${field.chipTone} option-${option.toLowerCase().replaceAll(/[^a-z]+/g, '-')}${value === option ? ' active' : ''}`} onClick={() => onChange(option)} whileTap={{ scale: .96 }}>{value === option && <motion.span className="choice-active-pill" layoutId={`choice-${field.column}`} transition={spring} />}<span className="choice-content"><ChoiceIcon field={field.column} option={option} />{option}</span></motion.button>)}</div></div>; }
 const CHOICE_ICONS = { 'Event Type': { Personal: '●', Family: '♡', Social: '◉', Professional: '▣' }, 'Emotional Importance': { Low: '↓', Medium: '−', High: '↑', 'Life-Changing': '✦' }, 'Event Status': { Planned: '◷', Ongoing: '◌', Completed: '✓', Cancelled: '×' } };

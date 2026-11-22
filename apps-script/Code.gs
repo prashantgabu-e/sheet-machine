@@ -5,7 +5,7 @@
   const EVENT_FIELDS = [
     { column: 'Event Name', type: 'text', required: true },
     { column: 'Event Description', type: 'textarea', required: false },
-    { column: 'Event Category', type: 'choice', required: true, options: ['Family', 'Travel', 'Birthday', 'Celebration', 'Relationship', 'Health', 'Education', 'Career', 'Finance', 'Spiritual', 'Personal', 'Other'] },
+    { column: 'Event Category', type: 'choice', required: true, options: ['Family', 'Travel', 'Birthday', 'Celebration', 'Relationship', 'Health', 'Education', 'Career', 'Finance', 'Spiritual', 'Personal', 'Shaguns', 'Gifts', 'Other'] },
     { column: 'Start Date', type: 'date', required: true },
     { column: 'End Date', type: 'date', required: false },
     { column: 'Duration (Days)', generated: true },
@@ -43,6 +43,11 @@ const LOAN_HEADERS = [LOAN_SERIAL_HEADER].concat(LOAN_FIELDS.map((field) => fiel
     const requestId = String(payload.requestId || '');
     try {
       if (!requestId) throw new Error('Missing request identifier.');
+      if (payload.formId === 'bulk-event-import') {
+        assertBulkImportKey_(payload.apiKey);
+        appendBulkPrashantEvents_(JSON.parse(payload.events || '[]'));
+        return postMessageResponse_({ source: RESPONSE_SOURCE, requestId, success: true });
+      }
       const user = identity_(payload.idToken);
       if (ALLOWED_EMAILS.indexOf(user.email) < 0) throw new Error('Your Google account is not allowed to access Sheet Machine.');
       if (payload.formId === 'auth-check') return postMessageResponse_({ source: RESPONSE_SOURCE, requestId, success: true });

@@ -12,11 +12,11 @@ export const EVENT_FORM = {
   fields: [
     { column: 'Event Name', label: 'Event name', type: 'text', required: true, placeholder: 'e.g. Goa Family Vacation', span: 2 },
     { column: 'Photos / Videos Link', label: 'Photos or videos link', type: 'url', placeholder: 'https://drive.google.com/…', span: 2 },
-    { column: 'Event Category', label: 'Event category', type: 'choice', required: true, options: ['Family', 'Travel', 'Birthday', 'Celebration', 'Relationship', 'Health', 'Education', 'Career', 'Finance', 'Spiritual', 'Personal', 'Other'] },
+    { column: 'Event Category', label: 'Event category', type: 'choice', required: true, options: ['Family', 'Travel', 'Birthday', 'Celebration', 'Relationship', 'Health', 'Education', 'Career', 'Finance', 'Spiritual', 'Personal', 'Shaguns', 'Gifts', 'Other'] },
     { column: 'Event Type', label: 'Event type', type: 'choice', control: 'chips', chipTone: 'type', required: true, defaultValue: 'Personal', options: ['Personal', 'Family', 'Social', 'Professional'] },
     { column: 'Event Status', label: 'Event status', type: 'choice', control: 'chips', chipTone: 'status', required: true, defaultValue: 'Completed', options: ['Planned', 'Ongoing', 'Completed', 'Cancelled'] },
     { column: 'Event Dates', label: 'Event dates', type: 'date-range', required: true, startColumn: 'Start Date', endColumn: 'End Date', span: 2 },
-    { column: 'Location', label: 'Location', type: 'text', placeholder: 'City, state, country, or venue', span: 2 },
+    { column: 'Location', label: 'Location', type: 'location', options: ['Surendranagar', 'Ahmedabad', 'Zobala', 'Pune'], placeholder: 'e.g. Ahmedabad, Pune', span: 2 },
     { column: 'People Attended', label: 'People attended', type: 'people', options: ['Sahil', 'Umang', 'Mummy'], placeholder: 'Search or add a person' },
     { column: 'Emotional Importance', label: 'Emotional importance', type: 'choice', control: 'chips', chipTone: 'importance', options: ['Low', 'Medium', 'High', 'Life-Changing'] },
     { column: 'Amount Spent (₹)', label: 'Amount spent', type: 'currency', min: 0, placeholder: '0' },

@@ -135,6 +135,53 @@
   padding: 8px 10px !important;
 }
 
+/* Final dark theme layer: applies equally to native fields, cards, and portal menus. */
+[data-theme=dark] .app-content { background: linear-gradient(145deg, #101a2a, #0b1424); }
+[data-theme=dark] .sidebar,
+[data-theme=dark] .topbar { border-color: #263550; background: #101a2ce8; }
+[data-theme=dark] .sidebar-nav p { color: #8f9db3; }
+[data-theme=dark] .nav-item { color: #c4d0e4; }
+[data-theme=dark] .nav-item:hover { background: #1b2941; }
+[data-theme=dark] .nav-item.active {
+  background: linear-gradient(135deg, #302952, #1d304c);
+  color: #eeeaff;
+  box-shadow: inset 0 0 0 1px #7364ca66;
+}
+[data-theme=dark] .sidebar-account { border-color: #263550; color: #acbad0; }
+[data-theme=dark] .panel,
+[data-theme=dark] .login-card { border-color: #2e3c57; background: #152139f2; box-shadow: 0 20px 55px #00000038; }
+[data-theme=dark] .input-field,
+[data-theme=dark] .field-label { color: #d7e0f0; }
+[data-theme=dark] .input-field input,
+[data-theme=dark] .input-field textarea,
+[data-theme=dark] .currency-control,
+[data-theme=dark] .range-trigger,
+[data-theme=dark] .tags-box { border-color: #3b4d6b; background: #101a2c; color: #edf3ff; }
+[data-theme=dark] .input-field input::placeholder,
+[data-theme=dark] .input-field textarea::placeholder,
+[data-theme=dark] .range-trigger>span:first-child { color: #91a1ba; }
+[data-theme=dark] .currency-control>span { border-color: #3b4d6b; background: #1b2941; color: #bcb2ff; }
+[data-theme=dark] .calculated-field output { border-color: #51498d; background: #211d3d; color: #e4dfff; }
+[data-theme=dark] .search-select__control { border-color: #3b4d6b !important; background: #101a2c !important; }
+[data-theme=dark] .search-select__control--is-focused { border-color: #8b7bef !important; box-shadow: 0 0 0 2px #8b7bef2b !important; }
+[data-theme=dark] .search-select__single-value,
+[data-theme=dark] .search-select__input-container,
+[data-theme=dark] .search-select__placeholder,
+[data-theme=dark] .search-select__indicator { color: #dce6f7 !important; }
+[data-theme=dark] .search-select__indicator-separator { background-color: #3b4d6b !important; }
+[data-theme=dark] .search-select__menu { border-color: #3b4d6b !important; background: #16223a !important; box-shadow: 0 12px 28px #00000045 !important; }
+[data-theme=dark] .search-select__option { background: #16223a !important; color: #e6eefb !important; }
+[data-theme=dark] .search-select__option--is-focused { background: #22324f !important; }
+[data-theme=dark] .search-select__option--is-selected { background: #302952 !important; color: #e4dfff !important; }
+[data-theme=dark] .choice-chip { border-color: #3b4d6b; background: #152139; color: #dce6f7; }
+[data-theme=dark] .choice-chip-icon { background: #263957; color: #dce6f7; }
+[data-theme=dark] .choice-active-pill { border-color: #8978e8; background: #302952; }
+[data-theme=dark] .tag { background: #302952; color: #e4dfff; }
+[data-theme=dark] .calendar-popover { border-color: #3b4d6b; background: #16223a; color: #edf3ff; }
+[data-theme=dark] .calendar-footer { border-color: #3b4d6b; }
+[data-theme=dark] .calendar-footer>span { color: #aab8cf; }
+[data-theme=dark] .install-hint { border-color: #51498d; background: #211d3d; color: #e4dfff; }
+
 .install-hint {
   position: fixed;
   z-index: 20;
@@ -161,15 +208,37 @@
     padding: .8rem;
   }
 
+  .calendar-popover .rdp {
+    --rdp-day-width: 34px;
+    --rdp-day-height: 34px;
+  }
+
   .calendar-popover .rdp-months {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(2, 238px);
     align-items: flex-start;
     gap: .75rem;
   }
 
   .calendar-popover .rdp-month {
-    width: 242px;
+    width: 238px;
+    min-width: 238px;
+  }
+
+  .calendar-popover .rdp-month_grid {
+    width: 238px;
+    table-layout: fixed;
+  }
+
+  .calendar-popover .rdp-month_caption {
+    width: 238px;
+    overflow: hidden;
+  }
+
+  .calendar-popover .rdp-day,
+  .calendar-popover .rdp-weekday {
+    min-width: 34px;
+    text-align: center;
   }
 
   .calendar-popover .rdp-day {
