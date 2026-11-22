@@ -205,8 +205,8 @@
 .sheet-datepicker .react-datepicker__navigation:hover { background: #eeebff; }
 .sheet-datepicker .react-datepicker__navigation-icon::before { border-color: #5d4abb; }
 
-.sheet-range-datepicker {
-  display: flex;
+.react-datepicker.sheet-range-datepicker {
+  display: flex !important;
   align-items: flex-start;
   width: max-content;
 }
