@@ -205,6 +205,21 @@
 .sheet-datepicker .react-datepicker__navigation:hover { background: #eeebff; }
 .sheet-datepicker .react-datepicker__navigation-icon::before { border-color: #5d4abb; }
 
+.sheet-range-datepicker {
+  display: flex;
+  align-items: flex-start;
+  width: max-content;
+}
+
+.sheet-range-datepicker .react-datepicker__month-container {
+  float: none;
+  width: 252px;
+}
+
+.sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container {
+  border-left: 1px solid #e5e9f1;
+}
+
 [data-theme=dark] .sheet-datepicker {
   border-color: #3b4d6b;
   background: #16223a;
@@ -222,8 +237,17 @@
 [data-theme=dark] .sheet-datepicker .react-datepicker__day-name { color: #9eafc7; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__day:hover { background: #302952; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__day--in-range { background: #302952; color: #e4dfff; }
+[data-theme=dark] .sheet-datepicker .react-datepicker__day--keyboard-selected,
+[data-theme=dark] .sheet-datepicker .react-datepicker__day--selected,
+[data-theme=dark] .sheet-datepicker .react-datepicker__day--range-start,
+[data-theme=dark] .sheet-datepicker .react-datepicker__day--range-end {
+  background: #6d5bdd;
+  color: #fff;
+}
+[data-theme=dark] .sheet-datepicker .react-datepicker__day--in-selecting-range { background: #302952; color: #e4dfff; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__navigation { border-color: #3b4d6b; background: #16223a; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__navigation-icon::before { border-color: #bcb2ff; }
+[data-theme=dark] .sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container { border-color: #3b4d6b; }
 
 /* One clean control border and consistent internal spacing for every react-select field. */
 .search-select__control {
