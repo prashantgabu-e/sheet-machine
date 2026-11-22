@@ -205,19 +205,21 @@
 .sheet-datepicker .react-datepicker__navigation:hover { background: #eeebff; }
 .sheet-datepicker .react-datepicker__navigation-icon::before { border-color: #5d4abb; }
 
-.react-datepicker.sheet-range-datepicker {
-  display: flex !important;
-  align-items: flex-start;
-  width: max-content;
-}
+@media (min-width: 681px) {
+  .react-datepicker.sheet-range-datepicker {
+    display: flex !important;
+    align-items: flex-start;
+    width: max-content;
+  }
 
-.sheet-range-datepicker .react-datepicker__month-container {
-  float: none;
-  width: 252px;
-}
+  .sheet-range-datepicker .react-datepicker__month-container {
+    float: none;
+    width: 252px;
+  }
 
-.sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container {
-  border-left: 1px solid #e5e9f1;
+  .sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container {
+    border-left: 1px solid #e5e9f1;
+  }
 }
 
 [data-theme=dark] .sheet-datepicker {
@@ -247,7 +249,9 @@
 [data-theme=dark] .sheet-datepicker .react-datepicker__day--in-selecting-range { background: #302952; color: #e4dfff; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__navigation { border-color: #3b4d6b; background: #16223a; }
 [data-theme=dark] .sheet-datepicker .react-datepicker__navigation-icon::before { border-color: #bcb2ff; }
-[data-theme=dark] .sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container { border-color: #3b4d6b; }
+@media (min-width: 681px) {
+  [data-theme=dark] .sheet-range-datepicker .react-datepicker__month-container + .react-datepicker__month-container { border-color: #3b4d6b; }
+}
 
 /* One clean control border and consistent internal spacing for every react-select field. */
 .search-select__control {
@@ -349,6 +353,7 @@
 [data-theme=dark] .calendar-footer { border-color: #3b4d6b; }
 [data-theme=dark] .calendar-footer>span { color: #aab8cf; }
 [data-theme=dark] .install-hint { border-color: #51498d; background: #211d3d; color: #e4dfff; }
+[data-theme=dark] .form-footer { border-color: #3b4d6b; background: #152139; }
 
 .install-hint {
   position: fixed;
@@ -368,6 +373,22 @@
 
 @media (max-width: 760px) {
   .install-hint { top: 66px; right: .75rem; }
+}
+
+@media (max-width: 680px) {
+  .form-footer {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    margin-top: .3rem;
+    padding: 1.1rem 0 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .form-footer button { width: 100%; }
 }
 
 /* Compact, horizontal desktop calendar layout. */
